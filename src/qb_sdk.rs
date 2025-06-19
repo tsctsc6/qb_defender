@@ -1,7 +1,6 @@
 use crate::command::Cli;
 use crate::log;
 use reqwest::{Client, Error};
-use std::fmt::{Debug, Display};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -51,6 +50,26 @@ impl QbClient {
         if api_versions[0] < 2 || api_versions[1] < 3 {
             return Err("Need QBittorrent API version >= 2.3.0".to_string())
         };
+        Ok(())
+    }
+
+    #[allow(non_snake_case)]
+    pub async fn reset_banned_IPs(&self) -> Result<(), String>
+    {
+        let result = self.client.post(
+            format!("http://127.0.0.1:{}/api/v2/app/setPreferences", self.config.port))
+            .form(&[("json", r#""{"banned_IPs":""}""#)])
+            .send()
+            .await;
+        let success_result = match result {
+            Ok(resp) => resp,
+            Err(e) => {
+                return Err(format!("Can't reset QBittorrent IP:\n{:#?}", e));
+            }
+        };
+        if !success_result.status().is_success() {
+            return Err(format!("Can't reset QBittorrent IPs:\n{:#?}", success_result));
+        }
         Ok(())
     }
 }
