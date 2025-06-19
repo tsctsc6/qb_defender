@@ -72,7 +72,7 @@ impl QbClient {
     #[allow(non_snake_case)]
     pub async fn reset_banned_IPs(&self) -> Result<(), String>
     {
-        let result = self.sync_maindata()
+        let result = self.set_preferences()
             .form(&[("json", r#""{"banned_IPs":""}""#)])
             .send()
             .await;
