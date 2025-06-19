@@ -27,6 +27,10 @@ impl QbClient {
         self.client.post(self.get_host() + "/api/v2/app/setPreferences")
     }
 
+    fn sync_maindata(&self) -> RequestBuilder {
+        self.client.get(self.get_host() + "/api/v2/sync/maindata")
+    }
+
     async fn get_api_version(&self) -> Result<String, Error>
     {
         let resp = self.client.get(self.get_host() + "/api/v2/app/webapiVersion")
@@ -68,7 +72,7 @@ impl QbClient {
     #[allow(non_snake_case)]
     pub async fn reset_banned_IPs(&self) -> Result<(), String>
     {
-        let result = self.set_preferences()
+        let result = self.sync_maindata()
             .form(&[("json", r#""{"banned_IPs":""}""#)])
             .send()
             .await;
