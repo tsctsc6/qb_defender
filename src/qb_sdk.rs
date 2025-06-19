@@ -1,18 +1,21 @@
 use crate::command::Cli;
 use crate::log;
+use chrono::{DateTime, Duration, Local};
 use reqwest::{Client, Error, RequestBuilder};
-use chrono::{DateTime, Local, Duration};
+use serde_json::Value;
+use std::collections::HashMap;
 use tokio::time::sleep;
 
 pub struct QbClient {
     client: Client,
     config: Cli,
     last_reset_time: DateTime<Local>,
+    peer_dic: HashMap<String, Peer>,
 }
 
 impl QbClient {
     pub fn new(cli: Cli) -> Self {
-        QbClient{client: Client::new(), config: cli, last_reset_time: Local::now() }
+        QbClient{client: Client::new(), config: cli, last_reset_time: Local::now(), peer_dic: HashMap::new() }
     }
 
     pub async fn wait(&self) {
@@ -23,15 +26,15 @@ impl QbClient {
         format!("http://127.0.0.1:{}", self.config.port)
     }
 
-    fn set_preferences(&self) -> RequestBuilder {
+    fn api_set_preferences(&self) -> RequestBuilder {
         self.client.post(self.get_host() + "/api/v2/app/setPreferences")
     }
 
-    fn sync_maindata(&self) -> RequestBuilder {
-        self.client.get(self.get_host() + "/api/v2/sync/maindata")
+    fn api_get_torrents_info(&self) -> RequestBuilder {
+        self.client.get(self.get_host() + "/api/v2/torrents/info")
     }
 
-    fn sync_torrent_peers(&self, hash: &str) -> RequestBuilder {
+    fn api_sync_torrent_peers(&self, hash: &str) -> RequestBuilder {
         self.client.get(self.get_host() + "/api/v2/sync/torrentPeers?hash=" + hash)
     }
 
@@ -76,7 +79,7 @@ impl QbClient {
     #[allow(non_snake_case)]
     pub async fn reset_banned_IPs(&self) -> Result<(), String>
     {
-        let result = self.set_preferences()
+        let result = self.api_set_preferences()
             .form(&[("json", r#""{"banned_IPs":""}""#)])
             .send()
             .await;
@@ -100,4 +103,92 @@ impl QbClient {
         }
         Ok(())
     }
+
+    pub async fn record_peers(&mut self) -> Result<(), String>
+    {
+        let resp = match self.api_get_torrents_info().send().await {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", e))
+        };
+        if !resp.status().is_success() {
+            return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", resp));
+        }
+        let content = match resp.text().await {
+            Ok(t) => t,
+            Err(e) => return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", e)),
+        };
+        let json_value: Value = match serde_json::from_str(&content){
+            Ok(v) => v,
+            Err(e) => return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", e))
+        };
+        let hash_array = match json_value.as_array() {
+            Some(v) => v,
+            None => return Err("Can't get QBittorrent torrents info".to_string()),
+        };
+        let hash_array: Vec<&str> = hash_array
+            .iter().filter_map(|p| {
+                match p["hash"].as_str() {
+                    Some(v) => Some(v),
+                    None => return None
+                }
+            })
+            .collect();
+        for hash in hash_array {
+            let resp = match self.api_sync_torrent_peers(hash).send().await {
+                Ok(resp) => resp,
+                Err(e) => return Err(format!("Can't get QBittorrent torrents info: {}\n{}", hash, e)),
+            };
+            if !resp.status().is_success() {
+                return Err(format!("Can't get QBittorrent torrents info: {}\n{}", hash, resp.status()))
+            }
+            let content = match resp.text().await {
+                Ok(t) => t,
+                Err(e) => return Err(format!("Can't get QBittorrent torrents info: {}\n{}", hash, e)),
+            };
+            let json_value: Value = match serde_json::from_str(&content){
+                Ok(v) => v,
+                Err(e) => return Err(format!("Can't get QBittorrent torrents info: {}\n{}", hash, e)),
+            };
+            let json_value = match json_value["peers"].as_object() {
+                Some(v) => v,
+                None => return Err(format!("Can't get QBittorrent torrents info: {}", hash)),
+            };
+            for (key, value) in json_value.iter() {
+                let ip = match value["ip"].as_str() {
+                    Some(v) => v,
+                    None => return Err(format!("Can't get QBittorrent torrents info: {}, {}", hash, key)),
+                };
+                let port = match value["port"].as_i64() {
+                    Some(v) => v,
+                    None => return Err(format!("Can't get QBittorrent torrents info: {}, {}", hash, key)),
+                } as u16;
+                let uploaded = match value["uploaded"].as_u64() {
+                    Some(v) => v,
+                    None => return Err(format!("Can't get QBittorrent torrents info: {}, {}", hash, key)),
+                };
+                match self.peer_dic.get_mut(key) {
+                    None => {
+                        match self.peer_dic.insert(String::from(key),
+                                             Peer{ip: String::from(ip), port, uploaded, last_uploaded: uploaded }) {
+                            None => {}
+                            Some(_) => {}
+                        }
+                    },
+                    Some(v) => {
+                        v.last_uploaded = v.uploaded;
+                        v.uploaded = uploaded;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Peer {
+    ip: String,
+    port: u16,
+    uploaded: u64,
+    last_uploaded: u64
 }
