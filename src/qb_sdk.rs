@@ -1,17 +1,18 @@
 use crate::command::Cli;
 use crate::log;
 use reqwest::{Client, Error, RequestBuilder};
-use std::time::Duration;
+use chrono::{DateTime, Local, Duration};
 use tokio::time::sleep;
 
 pub struct QbClient {
     client: Client,
-    config: Cli
+    config: Cli,
+    last_reset_time: DateTime<Local>,
 }
 
 impl QbClient {
     pub fn new(cli: Cli) -> Self {
-        QbClient{client: Client::new(), config: cli}
+        QbClient{client: Client::new(), config: cli, last_reset_time: Local::now() }
     }
 
     fn get_host(&self) -> String {
@@ -40,7 +41,7 @@ impl QbClient {
                 Err(_) => {
                     log::log(format!("Can't connect to qBittorrent WebUI, wait {} seconds to reconnect!",
                         self.config.interval).as_str());
-                    sleep(Duration::from_secs(self.config.interval)).await;
+                    sleep(std::time::Duration::from_secs(self.config.interval)).await;
                 }
             }
         };
@@ -75,6 +76,15 @@ impl QbClient {
         };
         if !success_result.status().is_success() {
             return Err(format!("Can't reset QBittorrent IPs:\n{:#?}", success_result));
+        }
+        Ok(())
+    }
+
+    #[allow(non_snake_case)]
+    pub async fn try_reset_banned_IPs(&self) -> Result<(), String>
+    {
+        if Local::now() - self.last_reset_time > Duration::days(1) {
+            self.reset_banned_IPs().await?
         }
         Ok(())
     }
