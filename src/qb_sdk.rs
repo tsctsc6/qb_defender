@@ -38,7 +38,6 @@ impl QbClient {
                 }
             }
         };
-        println!("{}", api_version);
         let api_versions = api_version.split('.')
             .map(|s| {
                 match s.parse::<i32>(){
