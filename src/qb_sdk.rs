@@ -31,6 +31,10 @@ impl QbClient {
         self.client.get(self.get_host() + "/api/v2/sync/maindata")
     }
 
+    fn sync_torrent_peers(&self, hash: &str) -> RequestBuilder {
+        self.client.get(self.get_host() + "/api/v2/sync/torrentPeers?hash=" + hash)
+    }
+
     async fn get_api_version(&self) -> Result<String, Error>
     {
         let resp = self.client.get(self.get_host() + "/api/v2/app/webapiVersion")
