@@ -15,6 +15,10 @@ impl QbClient {
         QbClient{client: Client::new(), config: cli, last_reset_time: Local::now() }
     }
 
+    pub async fn wait(&self) {
+        sleep(std::time::Duration::from_secs(self.config.interval)).await;
+    }
+
     fn get_host(&self) -> String {
         format!("http://127.0.0.1:{}", self.config.port)
     }
@@ -41,7 +45,7 @@ impl QbClient {
                 Err(_) => {
                     log::log(format!("Can't connect to qBittorrent WebUI, wait {} seconds to reconnect!",
                         self.config.interval).as_str());
-                    sleep(std::time::Duration::from_secs(self.config.interval)).await;
+                    self.wait().await;
                 }
             }
         };
