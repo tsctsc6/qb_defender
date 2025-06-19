@@ -76,14 +76,14 @@ impl QbClient {
             .form(&[("json", r#""{"banned_IPs":""}""#)])
             .send()
             .await;
-        let success_result = match result {
+        let resp = match result {
             Ok(resp) => resp,
             Err(e) => {
                 return Err(format!("Can't reset QBittorrent IP:\n{:#?}", e));
             }
         };
-        if !success_result.status().is_success() {
-            return Err(format!("Can't reset QBittorrent IPs:\n{:#?}", success_result));
+        if !resp.status().is_success() {
+            return Err(format!("Can't reset QBittorrent IPs:\n{:#?}", resp));
         }
         Ok(())
     }
