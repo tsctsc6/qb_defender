@@ -1,6 +1,6 @@
 use crate::command::Cli;
 use crate::log;
-use reqwest::{Client, Error};
+use reqwest::{Client, Error, RequestBuilder};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -14,10 +14,17 @@ impl QbClient {
         QbClient{client: Client::new(), config: cli}
     }
 
+    fn get_host(&self) -> String {
+        format!("http://127.0.0.1:{}", self.config.port)
+    }
+
+    fn set_preferences(&self) -> RequestBuilder {
+        self.client.post(self.get_host() + "/api/v2/app/setPreferences")
+    }
+
     async fn get_api_version(&self) -> Result<String, Error>
     {
-        let resp = self.client.get(
-            format!("http://127.0.0.1:{}/api/v2/app/webapiVersion", self.config.port))
+        let resp = self.client.get(self.get_host() + "/api/v2/app/webapiVersion")
             .send()
             .await?;
         let text = resp.text().await?;
@@ -56,8 +63,7 @@ impl QbClient {
     #[allow(non_snake_case)]
     pub async fn reset_banned_IPs(&self) -> Result<(), String>
     {
-        let result = self.client.post(
-            format!("http://127.0.0.1:{}/api/v2/app/setPreferences", self.config.port))
+        let result = self.set_preferences()
             .form(&[("json", r#""{"banned_IPs":""}""#)])
             .send()
             .await;
