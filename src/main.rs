@@ -19,5 +19,9 @@ async fn run() -> Result<(), String> {
     let qb_client = qb_sdk::QbClient::new(cli);
     qb_client.ensure_api_version().await?;
     qb_client.reset_banned_IPs().await?;
-    Ok(())
+    loop {
+        qb_client.try_reset_banned_IPs().await?;
+        
+        qb_client.wait().await;
+    }
 }
