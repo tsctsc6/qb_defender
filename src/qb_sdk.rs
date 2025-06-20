@@ -111,7 +111,7 @@ impl QbClient {
 
     pub async fn record_and_ban_peers(&mut self) -> Result<(), String>
     {
-        // 获取所有 torrent 的信息
+        // 获取所有 peers 的信息
         let resp = match self.api_get_torrents_info().send().await {
             Ok(resp) => resp,
             Err(e) => return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", e))
@@ -145,7 +145,7 @@ impl QbClient {
             })
             .collect();
         {
-            // 记录 torrent 的信息
+            // 记录 peers 的信息
             let torrent_dic = &mut self.torrent_dic;
             for torrent in torrent_array {
                 match torrent_dic.get(torrent.hash.as_str()) {
@@ -159,7 +159,7 @@ impl QbClient {
         // hsah, ip, info
         let mut torrent_ip_peer: HashMap<String, HashMap<String, Peer>> = HashMap::with_capacity(self.torrent_dic.len());
         {
-            // 获取连接到这个 torrent 的所有 ip
+            // 获取连接到这个 peers 的所有 ip
             let torrent_dic = &self.torrent_dic;
             for (hash, _) in torrent_dic {
                 let resp = match self.api_sync_torrent_peers(hash.as_str()).send().await {
@@ -222,15 +222,16 @@ impl QbClient {
 
         let mut ban_peers: Vec<String> = vec![];
         // 更新 peer 信息，并判断是否 ban
-        for (hash, torrent) in torrent_ip_peer.iter() {
+        for (hash, peers) in torrent_ip_peer.iter() {
+            let torrent_size =  *&self.torrent_dic[hash.as_str()].size;
             let old_torrent = match self.torrent_dic.get_mut(hash.as_str()) {
                 None => {
-                    log::log(&format!("Can't get QBittorrent torrent from local dic: {:#?}", hash));
+                    log::log(&format!("Can't get QBittorrent peers from local dic: {:#?}", hash));
                     continue;
                 }
                 Some(v) => v
             };
-            for (ip_port, peer) in torrent.iter() {
+            for (ip_port, peer) in peers.iter() {
                 let old_peer = match old_torrent.peer_dic.insert(String::from(ip_port), peer.clone()) {
                     None => { continue; }
                     Some(v) => v
