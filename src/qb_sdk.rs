@@ -254,7 +254,10 @@ impl QbClient {
                 }
             }
         }
-
+        
+        if ban_peers.len() == 0 {
+            return Ok(())
+        };
         let resp = match self.api_ban_peers()
             .form(&["peers", ban_peers.join("|").as_str()])
             .send().await {
