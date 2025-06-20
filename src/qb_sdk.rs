@@ -125,7 +125,7 @@ impl QbClient {
 
     pub async fn record_and_ban_peers(&mut self) -> Result<(), String>
     {
-        // 获取所有 peers 的信息
+        // 获取所有 torrent 的信息
         let resp = match self.api_get_torrents_info().send().await {
             Ok(resp) => resp,
             Err(e) => return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", e))
@@ -159,7 +159,7 @@ impl QbClient {
             })
             .collect();
         {
-            // 记录 peers 的信息
+            // 记录 torrent 的信息
             let torrent_dic = &mut self.torrent_dic;
             for torrent in torrent_array {
                 match torrent_dic.get(torrent.hash.as_str()) {
@@ -173,9 +173,9 @@ impl QbClient {
         // hsah, ip, info
         let mut torrent_ip_peer: HashMap<String, HashMap<String, Peer>> = HashMap::with_capacity(self.torrent_dic.len());
         {
-            // 获取连接到这个 peers 的所有 ip
             let torrent_dic = &self.torrent_dic;
             for (hash, _) in torrent_dic {
+                // 获取连接到这个 torrent 的所有 ip
                 let resp = match self.api_sync_torrent_peers(hash.as_str()).send().await {
                     Ok(resp) => resp,
                     Err(e) => return Err(format!("Can't get QBittorrent torrents info: {}\n{}", hash, e)),
@@ -224,12 +224,16 @@ impl QbClient {
 
         // 移除没有出现的 peer
         for (_, torrent) in self.torrent_dic.iter_mut() {
-            let ips = torrent.peer_dic.iter().filter_map(|(k, _)| {
+            let self_ip_ports = torrent.peer_dic.iter().filter_map(|(k, _)| {
                 Some(String::from(k))
             }).collect::<Vec<String>>();
-            for ip in ips {
-                if !torrent_ip_peer.contains_key(ip.as_str()) {
-                    torrent.peer_dic.remove(ip.as_str());
+            let torrent_from_torrent_ip_peer = match torrent_ip_peer.get(torrent.hash.as_str()) {
+                Some(v) => v,
+                None => continue,
+            };
+            for ip_port in self_ip_ports {
+                if !torrent_from_torrent_ip_peer.contains_key(ip_port.as_str()) {
+                    torrent.peer_dic.remove(ip_port.as_str());
                 }
             }
         }
@@ -246,8 +250,11 @@ impl QbClient {
                 Some(v) => v
             };
             for (ip_port, peer) in peers.iter() {
-                let old_peer = match old_torrent.peer_dic.insert(String::from(ip_port), peer.clone()) {
-                    None => { continue; }
+                let old_peer = old_torrent.peer_dic.insert(String::from(ip_port), peer.clone());
+                let old_peer = match old_peer{
+                    None => {
+                        continue;
+                    }
                     Some(v) => v
                 };
                 if QbClient::judge_banned(&old_peer, peer, torrent_size) {
@@ -259,8 +266,9 @@ impl QbClient {
         if ban_peers.len() == 0 {
             return Ok(())
         };
+        let peers = ban_peers.join("|");
         let resp = match self.api_ban_peers()
-            .form(&["peers", ban_peers.join("|").as_str()])
+            .form(&[("peers", peers.as_str())])
             .send().await {
             Ok(resp) => resp,
             Err(e) => {
@@ -309,7 +317,6 @@ impl QbClient {
             log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
             return true;
         }*/
-
         // 上传量 > 种子大小
         if new.uploaded > torrent_size {
             log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
@@ -328,7 +335,7 @@ impl QbClient {
             return true;
         }
 
-        // 进度小于上传量
+        // 进度增量小于上传增量
         let diff_uploaded = new.uploaded - old.uploaded;
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR  {
@@ -337,6 +344,13 @@ impl QbClient {
         }
 
         false
+    }
+
+    fn print_torrent_dic_peer_dic_len(&self) {
+        let lens = self.torrent_dic.iter().map(|(k, v)| {
+            v.peer_dic.len()
+        }).collect::<Vec<usize>>();
+        println!("Torrent Dic len: {:?}", lens);
     }
 }
 
