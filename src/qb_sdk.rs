@@ -305,10 +305,10 @@ impl QbClient {
         }
 
         // 对方回复的进度是 0 或者 对方从未上传
-        if new.progress < F64_ERROR || new.uploaded == 0 {
+        /*if new.progress < F64_ERROR || new.uploaded == 0 {
             log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
             return true;
-        }
+        }*/
 
         // 上传量 > 种子大小
         if new.uploaded > torrent_size {
