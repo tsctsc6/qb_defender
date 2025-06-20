@@ -15,7 +15,7 @@ jobs:
           - windows
           - macos
           - linux
-    runs-on: ${{matrix.rid}}-latest
+    runs-on: ${{ startsWith(matrix.rid, 'win') && 'windows-latest' || startsWith(matrix.rid, 'macos') && 'macos-latest' || 'ubuntu-latest' }}
 
     steps:
     - name: Checkout code
