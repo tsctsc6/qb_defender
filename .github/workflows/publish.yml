@@ -32,5 +32,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{matrix.rid}}-bundle
-        path: ./target/release/
+        path: ./target/release/qb_defender${{ startsWith(matrix.rid, 'win') && '.exe' || '' }}
         if-no-files-found: error
