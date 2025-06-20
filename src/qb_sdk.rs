@@ -6,6 +6,19 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tokio::time::sleep;
 
+const F64_ERROR : f64 = 0.00001;
+
+const LEECH_CLIENTS: [&str; 34] = ["-XL", "Xunlei", "XunLei", "7.", "aria2", "Xfplay", "dandanplay", "FDM", "go.torrent", "Mozilla",
+    "github.com/anacrolix/torrent (devel) (anacrolix/torrent unknown)", "dt/torrent/", "Taipei-Torrent dev",
+    "trafficConsume", "hp/torrent/", "BitComet 1.92", "BitComet 1.98", "xm/torrent/", "flashget", "FlashGet",
+    "StellarPlayer", "Gopeed", "MediaGet", "aD/", "ADM", "coc_coc_browser", "FileCroc", "filecxx", "Folx",
+    "seanime (devel) (anacrolix/torrent", "HitomiDownloader", "gateway (devel) (anacrolix/torrent",
+    "offline-download (devel) (anacrolix/torrent", "QQDownload"];
+
+const ANCIENT_CLIENTS: [&str; 16] = ["TorrentStorm", "Azureus 1.", "Azureus 2.", "Azureus 3.", "Deluge 0.", "Deluge 1.0", "Deluge 1.1",
+    "qBittorrent 0.", "qBittorrent 1.", "qBittorrent 2.", "Transmission 0.", "Transmission 1.", "BitComet 0.",
+    "µTorrent 1.", "uTorrent 1.", "μTorrent 1."];
+
 pub struct QbClient {
     client: Client,
     config: Cli,
@@ -236,7 +249,7 @@ impl QbClient {
                     None => { continue; }
                     Some(v) => v
                 };
-                if QbClient::judge_banned(&old_peer, peer) {
+                if QbClient::judge_banned(&old_peer, peer, torrent_size) {
                     ban_peers.push(String::from(ip_port));
                 }
             }
@@ -256,8 +269,69 @@ impl QbClient {
 
         Ok(())
     }
-    fn judge_banned(old: &Peer, new: &Peer) -> bool
+    fn judge_banned(old: &Peer, new: &Peer, torrent_size: u64) -> bool
     {
+        // 客户端名称只允许：
+        // ASCII 字符（Unicode 码点 0x20（空格） 到 0x7E（'~'））
+        // 'µ'（0xB5），'μ'（0x03BC）
+        for c in new.client.chars() {
+            if c < ' ' || (c > '~' && c != 'µ' && c != 'μ') {
+                log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
+                return true;
+            }
+        }
+
+        // 诡异客户端
+        if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
+            || new.client.starts_with("Unknown") {
+            log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 吸血客户端
+        if LEECH_CLIENTS.contains(&new.client.as_str()) {
+            log::log(format!("Banned - Leech Client: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 上古客户端
+        if ANCIENT_CLIENTS.contains(&new.client.as_str()) {
+            log::log(format!("Banned - Ancient Client: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 对方回复的进度是 0 或者 对方从未上传
+        if new.progress < F64_ERROR || new.uploaded == 0 {
+            log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 上传量 > 种子大小
+        if new.uploaded > torrent_size {
+            log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 上传 10 MB 后，对方进度仍为 0
+        if new.uploaded > 10 * 1024 * 1024 && new.progress < F64_ERROR {
+            log::log(format!("Banned - Uploaded 10 MB and progress is 0: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 进度倒退
+        if new.progress < old.progress {
+            log::log(format!("Banned - Progress is regressive: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
+        // 进度小于上传量
+        let diff_uploaded = new.uploaded - old.uploaded;
+        let diff_progress = new.progress - old.progress;
+        if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR  {
+            log::log(format!("Banned - Progress is not expected: {}:{}", new.ip, new.port).as_str());
+            return true;
+        }
+
         false
     }
 }
