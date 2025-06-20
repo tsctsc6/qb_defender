@@ -99,7 +99,8 @@ impl QbClient {
     pub async fn try_reset_banned_IPs(&self) -> Result<(), String>
     {
         if Local::now() - self.last_reset_time > Duration::days(1) {
-            self.reset_banned_IPs().await?
+            self.reset_banned_IPs().await?;
+            self.last_reset_time = Local::now();
         }
         Ok(())
     }
