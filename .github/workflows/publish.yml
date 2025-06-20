@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         rid:
-          - windows
+          - win
           - macos
           - linux
     runs-on: ${{ startsWith(matrix.rid, 'win') && 'windows-latest' || startsWith(matrix.rid, 'macos') && 'macos-latest' || 'ubuntu-latest' }}
