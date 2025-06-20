@@ -21,7 +21,7 @@ async fn run() -> Result<(), String> {
     qb_client.reset_banned_IPs().await?;
     loop {
         qb_client.try_reset_banned_IPs().await?;
-        qb_client.record_peers().await?;
+        qb_client.record_and_ban_peers().await?;
         qb_client.wait().await;
     }
 }
