@@ -109,7 +109,7 @@ impl QbClient {
         if !resp.status().is_success() {
             return Err(format!("Can't reset QBittorrent IPs:\n{:#?}", resp));
         }
-        println!("Reset banned IPs!");
+        log::log("Reset banned IPs!");
         Ok(())
     }
 
