@@ -18,12 +18,12 @@ jobs:
           #- rid: macos-x86_64
           #  host_os: macos-latest
           #  toolchain: x86_64-apple-darwin
-          - rid: macos-aarch64
-            host_os: macos-latest
-            toolchain: aarch64-apple-darwin
-          #- rid: linux-x86_64
-          #  host_os: ubuntu-latest
-          #  toolchain: x86_64-unknown-linux-gnu
+          #- rid: macos-aarch64
+          #  host_os: macos-latest
+          #  toolchain: aarch64-apple-darwin
+          - rid: linux-x86_64
+            host_os: ubuntu-latest
+            toolchain: x86_64-unknown-linux-gnu
           #- rid: linux-aarch64
           #  host_os: ubuntu-latest
           #  toolchain: aarch64-unknown-linux-gnu
