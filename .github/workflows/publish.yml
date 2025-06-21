@@ -55,6 +55,9 @@ jobs:
     - name: Build
       run: |
         cargo build --target ${{ matrix.toolchain }} --release
+      env:
+        OPENSSL_DIR: /usr/lib/i386-linux-gnu
+        OPENSSL_INCLUDE_DIR: /usr/include
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
