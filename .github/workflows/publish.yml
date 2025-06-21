@@ -12,12 +12,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - rid: win-x86_64
-            host_os: windows-latest
-            toolchain: x86_64-pc-windows-msvc
-          #- rid: macos-x86_64
-          #  host_os: macos-latest
-          #  toolchain: x86_64-apple-darwin
+          #- rid: win-x86_64
+          #  host_os: windows-latest
+          #  toolchain: x86_64-pc-windows-msvc
+          - rid: macos-x86_64
+            host_os: macos-latest
+            toolchain: x86_64-apple-darwin
           #- rid: macos-aarch64
           #  host_os: macos-latest
           #  toolchain: aarch64-apple-darwin
