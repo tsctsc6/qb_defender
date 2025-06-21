@@ -206,11 +206,6 @@ impl QbClient {
             return true;
         }
 
-        // 对方回复的进度是 0 或者 对方从未上传
-        /*if new.progress < F64_ERROR || new.uploaded == 0 {
-            log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
-            return true;
-        }*/
         // 上传 10 MB 后，总上传大于报告进度的两倍
         if new.uploaded > 10 * 1024 * 1024 && new.progress * 2.0 < new.uploaded as f64 / torrent_size as f64 {
             log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
