@@ -45,9 +45,11 @@ jobs:
       run: |
         sudo apt update
         sudo apt-get install pkg-config libssl-dev
-        pkg-config --libs openssl
-        pkg-config --cflags openssl
     
+    - name: Print openssl path
+      if: ${{ startsWith(matrix.rid, 'linux-') }}
+      run: pkg-config --cflags openssl
+      
     - name: Install dependencies
       if: ${{ matrix.rid == 'linux-aarch64' }}
       run: |
