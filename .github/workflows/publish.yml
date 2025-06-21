@@ -41,7 +41,7 @@ jobs:
         rustup target add ${{ matrix.toolchain }}
     
     - name: Install openssl  
-      if: ${{ matrix.rid.startsWith('linux-') }}
+      if: ${{ startsWith(matrix.rid, 'linux-') }}
       run: |
         sudo apt update
         sudo apt-get install pkg-config libssl-dev
@@ -61,7 +61,7 @@ jobs:
         "[target.aarch64-unknown-linux-gnu]`nlinker = `"aarch64-linux-gnu-gcc`"" > .cargo/config.toml
     
     - name: Build not linux
-      if: ${{ !matrix.rid.startsWith('linux-') }}
+      if: ${{ !startsWith(matrix.rid, 'linux-') }}
       run: |
         cargo build --target ${{ matrix.toolchain }} --release
 
