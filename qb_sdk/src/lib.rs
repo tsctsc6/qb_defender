@@ -1,3 +1,5 @@
+mod web_api;
+
 use command::Cli;
 use log;
 use chrono::{DateTime, Duration, Local};
@@ -51,25 +53,7 @@ impl QbClient {
         sleep(std::time::Duration::from_secs(self.config.interval)).await;
     }
 
-    fn get_host(&self) -> String {
-        format!("http://127.0.0.1:{}", self.config.port)
-    }
-
-    fn api_set_preferences(&self) -> RequestBuilder {
-        self.client.post(self.get_host() + "/api/v2/app/setPreferences")
-    }
-
-    fn api_get_torrents_info(&self) -> RequestBuilder {
-        self.client.get(self.get_host() + "/api/v2/torrents/info")
-    }
-
-    fn api_sync_torrent_peers(&self, hash: &str) -> RequestBuilder {
-        self.client.get(self.get_host() + "/api/v2/sync/torrentPeers?hash=" + hash)
-    }
-
-    fn api_ban_peers(&self) -> RequestBuilder {
-        self.client.post(self.get_host() + "/api/v2/transfer/banPeers")
-    }
+    
 
     async fn get_api_version(&self) -> Result<String, Error>
     {
@@ -112,7 +96,7 @@ impl QbClient {
     #[allow(non_snake_case)]
     pub async fn reset_banned_IPs(&self) -> Result<(), String>
     {
-        let result = self.api_set_preferences()
+        let result = self.web_api_set_preferences()
             .form(&[("json", r#""{"banned_IPs":""}""#)])
             .send()
             .await;
@@ -142,7 +126,7 @@ impl QbClient {
     pub async fn record_and_ban_peers(&mut self) -> Result<(), String>
     {
         // 获取所有 torrent 的信息
-        let resp = match self.api_get_torrents_info().send().await {
+        let resp = match self.web_api_get_torrents_info().send().await {
             Ok(resp) => resp,
             Err(e) => return Err(format!("Can't get QBittorrent torrents info:\n{:#?}", e))
         };
@@ -192,7 +176,7 @@ impl QbClient {
             let torrent_dic = &self.torrent_dic;
             for (hash, _) in torrent_dic {
                 // 获取连接到这个 torrent 的所有 ip
-                let resp = match self.api_sync_torrent_peers(hash.as_str()).send().await {
+                let resp = match self.web_api_sync_torrent_peers(hash.as_str()).send().await {
                     Ok(resp) => resp,
                     Err(e) => return Err(format!("Can't get QBittorrent torrents info: {}\n{}", hash, e)),
                 };
@@ -283,7 +267,7 @@ impl QbClient {
             return Ok(())
         };
         let peers = ban_peers.join("|");
-        let resp = match self.api_ban_peers()
+        let resp = match self.web_api_ban_peers()
             .form(&[("peers", peers.as_str())])
             .send().await {
             Ok(resp) => resp,
