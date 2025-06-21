@@ -45,6 +45,8 @@ jobs:
       run: |
         sudo apt update
         sudo apt install libssl-dev pkg-config
+        pkg-config --libs openssl
+        pkg-config --cflags openssl
     
     - name: Install dependencies
       if: ${{ matrix.rid == 'linux-aarch64' }}
