@@ -87,6 +87,9 @@ impl QbClient {
     {
         if Local::now() - self.last_reset_time > Duration::days(1) {
             self.reset_banned_IPs().await?;
+            for torrent in self.torrent_dic.values_mut() {
+                torrent.peer_dic.clear();
+            }
             self.last_reset_time = Local::now();
         }
         Ok(())
