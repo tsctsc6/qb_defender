@@ -15,18 +15,18 @@ jobs:
           - rid: win-x86_64
             host_os: windows-lastest
             toolchain: x86_64-pc-windows-msvc
-          - rid: macos-x86_64
-            host_os: macos-lastest
-            toolchain: x86_64-apple-darwin
-          - rid: macos-aarch64
-            host_os: macos-lastest
-            toolchain: aarch64-apple-darwin
-          - rid: linux-x86_64
-            host_os: ubuntu-lastest
-            toolchain: x86_64-unknown-linux-gnu
-          - rid: linux-aarch64
-            host_os: ubuntu-lastest
-            toolchain: aarch64-unknown-linux-gnu
+          #- rid: macos-x86_64
+          #  host_os: macos-lastest
+          #  toolchain: x86_64-apple-darwin
+          #- rid: macos-aarch64
+          #  host_os: macos-lastest
+          #  toolchain: aarch64-apple-darwin
+          #- rid: linux-x86_64
+          #  host_os: ubuntu-lastest
+          #  toolchain: x86_64-unknown-linux-gnu
+          #- rid: linux-aarch64
+          #  host_os: ubuntu-lastest
+          #  toolchain: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.host_os }}
 
     steps:
