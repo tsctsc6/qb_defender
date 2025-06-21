@@ -206,8 +206,8 @@ impl QbClient {
             return true;
         }
 
-        // 上传 10 MB 后，总上传大于报告进度的两倍
-        if new.uploaded > 10 * 1024 * 1024 && new.progress * 2.0 < new.uploaded as f64 / torrent_size as f64 {
+        // 总上传 大于 报告进度 * 种子大小 + 10 MB
+        if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
             log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
             return true;
         }
