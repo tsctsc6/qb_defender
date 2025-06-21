@@ -39,7 +39,7 @@ jobs:
 
     - name: Build
       run: |
-        cargo build --release
+        cargo build --target ${{ matrix.toolchain }} --release
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
