@@ -21,12 +21,12 @@ jobs:
           #- rid: macos-aarch64
           #  host_os: macos-latest
           #  toolchain: aarch64-apple-darwin
-          - rid: linux-x86_64
-            host_os: ubuntu-latest
-            toolchain: x86_64-unknown-linux-gnu
-          #- rid: linux-aarch64
+          #- rid: linux-x86_64
           #  host_os: ubuntu-latest
-          #  toolchain: aarch64-unknown-linux-gnu
+          #  toolchain: x86_64-unknown-linux-gnu
+          - rid: linux-aarch64
+            host_os: ubuntu-latest
+            toolchain: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.host_os }}
 
     steps:
@@ -40,15 +40,18 @@ jobs:
       run: |
         rustup target add ${{ matrix.toolchain }}
     
-    - name: Install openssl  
-      if: ${{ startsWith(matrix.rid, 'linux-') }}
+    - name: Install openssl x64
+      if: ${{ matrix.rid == 'linux-x86_64' }}
       run: |
         sudo apt update
         sudo apt-get install pkg-config libssl-dev
-    
-    - name: Print openssl path
-      if: ${{ startsWith(matrix.rid, 'linux-') }}
-      run: pkg-config --cflags openssl
+
+    - name: Install openssl arm64
+      if: ${{ matrix.rid == 'linux-aarch64' }}
+      run: |
+        sudo dpkg --add-architecture arm64
+        sudo apt update
+        sudo apt-get install pkg-config libssl-dev:arm64
       
     - name: Install dependencies
       if: ${{ matrix.rid == 'linux-aarch64' }}
@@ -80,10 +83,6 @@ jobs:
       if: ${{ matrix.rid == 'linux-aarch64' }}
       run: |
         cargo build --target ${{ matrix.toolchain }} --release
-      env:
-        OPENSSL_DIR: OPENSSL_DIR=/usr/lib/aarch64-linux-gnu
-        OPENSSL_INCLUDE_DIR: /usr/include/openssl
-        OPENSSL_LIB_DIR: /usr/lib/aarch64-linux-gnu
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
