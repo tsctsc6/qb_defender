@@ -41,7 +41,10 @@ jobs:
         rustup target add ${{ matrix.toolchain }}
 
     - name: Install dependencies
+      if: ${{ matrix.rid == 'linux-x86_64' }}
       run: |
+        sudo apt update
+        sudo apt install libssl-dev pkg-config
     
     - name: Build
       run: |
