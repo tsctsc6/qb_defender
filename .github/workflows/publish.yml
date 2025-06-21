@@ -13,20 +13,21 @@ jobs:
       matrix:
         include:
           - rid: win-x86_64
+            host_os: windows-lastest
             toolchain: x86_64-pc-windows-msvc
           - rid: macos-x86_64
+            host_os: macos-lastest
             toolchain: x86_64-apple-darwin
           - rid: macos-aarch64
+            host_os: macos-lastest
             toolchain: aarch64-apple-darwin
           - rid: linux-x86_64
+            host_os: ubuntu-lastest
             toolchain: x86_64-unknown-linux-gnu
-          - rid: linux-i686
-            toolchain: i686-unknown-linux-gnu
           - rid: linux-aarch64
+            host_os: ubuntu-lastest
             toolchain: aarch64-unknown-linux-gnu
-          - rid: linux-arm
-            toolchain: arm-unknown-linux-musleabi
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.host_os }}
 
     steps:
     - name: Checkout code
@@ -35,15 +36,12 @@ jobs:
     - name: Setup rust
       uses: dtolnay/rust-toolchain@stable
     
-    - name: Install toolchain
+    - name: Install target toolchain
       run: |
         rustup target add ${{ matrix.toolchain }}
 
-    - name: Install openssl
+    - name: Install dependencies
       run: |
-        sudo dpkg --add-architecture i386
-        sudo apt-get update
-        sudo apt-get install libssl-dev:i386
     
     - name: Build
       run: |
