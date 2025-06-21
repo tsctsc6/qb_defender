@@ -26,6 +26,22 @@ pub struct QbClient {
     torrent_dic: HashMap<String, Torrent>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Torrent {
+    hash: String,
+    size: u64,
+    peer_dic: HashMap<String, Peer>
+}
+
+#[derive(Clone, Debug)]
+pub struct Peer {
+    ip: String,
+    port: u16,
+    uploaded: u64,
+    progress: f64,
+    client: String,
+}
+
 impl QbClient {
     pub fn new(cli: Cli) -> Self {
         QbClient{client: Client::new(), config: cli, last_reset_time: Local::now(), torrent_dic: HashMap::new() }
@@ -352,20 +368,4 @@ impl QbClient {
         }).collect::<Vec<usize>>();
         println!("Torrent Dic len: {:?}", lens);
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct Torrent {
-    hash: String,
-    size: u64,
-    peer_dic: HashMap<String, Peer>
-}
-
-#[derive(Clone, Debug)]
-pub struct Peer {
-    ip: String,
-    port: u16,
-    uploaded: u64,
-    progress: f64,
-    client: String,
 }
