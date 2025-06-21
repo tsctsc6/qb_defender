@@ -1,9 +1,9 @@
 mod web_api;
 
+use chrono::{DateTime, Duration, Local};
 use command::Cli;
 use log;
-use chrono::{DateTime, Duration, Local};
-use reqwest::{Client, Error, RequestBuilder};
+use reqwest::{Client, Error};
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio::time::sleep;
