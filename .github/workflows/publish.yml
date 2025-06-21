@@ -21,12 +21,12 @@ jobs:
           #- rid: macos-aarch64
           #  host_os: macos-latest
           #  toolchain: aarch64-apple-darwin
-          - rid: linux-x86_64
-            host_os: ubuntu-latest
-            toolchain: x86_64-unknown-linux-gnu
-          #- rid: linux-aarch64
+          #- rid: linux-x86_64
           #  host_os: ubuntu-latest
-          #  toolchain: aarch64-unknown-linux-gnu
+          #  toolchain: x86_64-unknown-linux-gnu
+          - rid: linux-aarch64
+            host_os: ubuntu-latest
+            toolchain: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.host_os }}
 
     steps:
@@ -41,10 +41,10 @@ jobs:
         rustup target add ${{ matrix.toolchain }}
     
     - name: Install openssl  
-      if: ${{ matrix.rid == 'linux-x86_64' }}
+      if: ${{ matrix.rid.startsWith("linux-") }}
       run: |
         sudo apt update
-        sudo apt install libssl-dev pkg-config
+        sudo apt-get install pkg-config libssl-dev
         pkg-config --libs openssl
         pkg-config --cflags openssl
     
@@ -60,13 +60,28 @@ jobs:
         mkdir .cargo
         "[target.aarch64-unknown-linux-gnu]`nlinker = `"aarch64-linux-gnu-gcc`"" > .cargo/config.toml
     
-    - name: Build
+    - name: Build not linux
+      if: ${{ !matrix.rid.startsWith('linux-') }}
+      run: |
+        cargo build --target ${{ matrix.toolchain }} --release
+
+    - name: Build linux-x86_64
+      if: ${{ matrix.rid == 'linux-x86_64' }}
       run: |
         cargo build --target ${{ matrix.toolchain }} --release
       env:
         OPENSSL_DIR: OPENSSL_DIR=/usr/lib/x86_64-linux-gnu
         OPENSSL_INCLUDE_DIR: /usr/include/openssl
         OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
+
+    - name: Build linux-aarch64
+      if: ${{ matrix.rid == 'linux-aarch64' }}
+      run: |
+        cargo build --target ${{ matrix.toolchain }} --release
+      env:
+        OPENSSL_DIR: OPENSSL_DIR=/usr/lib/aarch64-linux-gnu
+        OPENSSL_INCLUDE_DIR: /usr/include/openssl
+        OPENSSL_LIB_DIR: /usr/lib/aarch64-linux-gnu
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
