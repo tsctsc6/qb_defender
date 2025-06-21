@@ -24,9 +24,9 @@ jobs:
           - rid: linux-x86_64
             host_os: ubuntu-latest
             toolchain: x86_64-unknown-linux-gnu
-          #- rid: linux-aarch64
-          #  host_os: ubuntu-latest
-          #  toolchain: aarch64-unknown-linux-gnu
+          - rid: linux-aarch64
+            host_os: ubuntu-latest
+            toolchain: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.host_os }}
 
     steps:
@@ -41,10 +41,16 @@ jobs:
         rustup target add ${{ matrix.toolchain }}
 
     - name: Install dependencies
-      if: ${{ matrix.rid == 'linux-x86_64' }}
+      if: ${{ matrix.rid == 'linux-aarch64' }}
       run: |
         sudo apt update
-        sudo apt install libssl-dev pkg-config
+        sudo apt install gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+    - name: Create cargo config file
+      if: ${{ matrix.rid == 'linux-aarch64' }}
+      run: |
+        mkdir .cargo
+        "[target.aarch64-unknown-linux-gnu]`nlinker = `"aarch64-linux-gnu-gcc`"" > .cargo/config.toml
     
     - name: Build
       run: |
