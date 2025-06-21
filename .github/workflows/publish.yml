@@ -41,7 +41,7 @@ jobs:
         rustup target add ${{ matrix.toolchain }}
     
     - name: Install openssl  
-      if: ${{ matrix.rid.startsWith("linux-") }}
+      if: ${{ matrix.rid.startsWith('linux-') }}
       run: |
         sudo apt update
         sudo apt-get install pkg-config libssl-dev
