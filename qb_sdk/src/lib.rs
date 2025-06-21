@@ -345,11 +345,4 @@ impl QbClient {
 
         false
     }
-
-    fn print_torrent_dic_peer_dic_len(&self) {
-        let lens = self.torrent_dic.iter().map(|(k, v)| {
-            v.peer_dic.len()
-        }).collect::<Vec<usize>>();
-        println!("Torrent Dic len: {:?}", lens);
-    }
 }
