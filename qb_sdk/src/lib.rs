@@ -208,8 +208,8 @@ impl QbClient {
             log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
             return true;
         }*/
-        // 上传量 > 种子大小
-        if new.uploaded > torrent_size {
+        // 总上传大于报告进度的两倍
+        if new.progress * 2.0 < new.uploaded as f64 / torrent_size as f64 {
             log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
             return true;
         }
