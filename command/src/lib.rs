@@ -9,3 +9,9 @@ pub struct Cli {
     #[arg(short, long, default_value_t = 10)]
     pub interval: u64,
 }
+
+impl Cli {
+    pub fn pub_prase() -> Self {
+        Cli::parse()
+    }
+}

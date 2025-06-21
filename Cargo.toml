@@ -3,9 +3,13 @@ name = "qb_defender"
 version = "0.1.0"
 edition = "2024"
 
+[workspace.dependencies]
+command = { path = "command"}
+log = { path = "log"}
+qb_sdk = { path = "qb_sdk"}
+
 [dependencies]
-clap = { version = "4.5.39", features = ["derive"] }
-reqwest = { version = "0.12.18", features = ["json"] }
 tokio = { version = "1.45.1", features = ["full"] }
-chrono = "0.4.41"
-serde_json = "1.0"
+command = { workspace = true }
+log = { workspace = true }
+qb_sdk = { workspace = true }
