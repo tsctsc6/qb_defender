@@ -1,2 +1,5 @@
-/target
-/.idea
+/.idea/
+/target/
+./command/target/
+./log/target/
+./qb_sdk/target/
