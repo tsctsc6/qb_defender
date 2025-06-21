@@ -1,8 +1,6 @@
-mod qb_sdk;
-mod command;
-mod log;
-
-use clap::Parser;
+use command;
+use log;
+use qb_sdk;
 
 #[tokio::main]
 async fn main() -> Result<(), i32> {
