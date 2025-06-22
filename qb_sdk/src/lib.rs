@@ -204,19 +204,19 @@ impl QbClient {
         // 客户端名称只允许：
         // ASCII 字符（Unicode 码点 0x20（空格） 到 0x7E（'~'））
         // 'µ'（0xB5），'μ'（0x03BC）
-        for c in new.client.chars() {
+        /*for c in new.client.chars() {
             if c < ' ' || (c > '~' && c != 'µ' && c != 'μ') {
                 log::log(format!("Banned - Weird Client: {}:{}, \"{}\"", new.ip, new.port, new.client).as_str());
                 return true;
             }
-        }
+        }*/
 
         // 诡异客户端
-        if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
+        /*if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
             || new.client.starts_with("Unknown") {
             log::log(format!("Banned - Weird Client: {}:{}, \"{}\"", new.ip, new.port, new.client).as_str());
             return true;
-        }
+        }*/
 
         // 吸血客户端
         if LEECH_CLIENTS.contains(&new.client.as_str()) {
