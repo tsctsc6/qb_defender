@@ -12,19 +12,20 @@ jobs:
     strategy:
       matrix:
         include:
-          #- rid: win-x86_64
-          #  host_os: windows-latest
-          #  toolchain: x86_64-pc-windows-msvc
-          #- rid: macos-x86_64
-          #  host_os: macos-latest
-          #  toolchain: x86_64-apple-darwin
-          #- rid: macos-aarch64
-          #  host_os: macos-latest
-          #  toolchain: aarch64-apple-darwin
-          #- rid: linux-x86_64
-          #  host_os: ubuntu-latest
-          #  toolchain: x86_64-unknown-linux-gnu
+          - rid: win-x86_64
+            host_os: windows-latest
+            toolchain: x86_64-pc-windows-msvc
+          - rid: macos-x86_64
+            host_os: macos-latest
+            toolchain: x86_64-apple-darwin
+          - rid: macos-aarch64
+            host_os: macos-latest
+            toolchain: aarch64-apple-darwin
+          - rid: linux-x86_64
+            host_os: ubuntu-latest
+            toolchain: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.host_os }}
+    timeout-minutes: 10
 
     steps:
     - name: Checkout code
@@ -63,3 +64,61 @@ jobs:
         name: ${{matrix.rid}}-bundle
         path: ./target/${{ matrix.toolchain }}/release/qb_defender${{ startsWith(matrix.rid, 'win') && '.exe' || '' }}
         if-no-files-found: error
+    
+  release1:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create release
+      env:
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      run: >
+        gh release create v${{ vars.RELEASE_VERSION }}
+        --repo ${{ github.event.repository.full_name }}
+        --title v${{ vars.RELEASE_VERSION }}
+        --generate-notes
+
+  release2:
+    needs:
+      - release1
+
+    strategy:
+      matrix:
+        rid:
+          - win-x86_64
+          - macos-x86_64
+          - macos-aarch64
+          - linux-x86_64
+    
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ matrix.rid }}-bundle
+        path: release/
+
+    - name: Create package
+      # Change into the artifacts directory to avoid including the directory itself in the zip archive
+      working-directory: release/
+      run: zip -r ../qb_defender-${{ matrix.rid }}-v${{ vars.RELEASE_VERSION }}.zip .
+
+    - name: Upload release asset
+      env:
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      run: >
+        gh release upload v${{ vars.RELEASE_VERSION }}
+        qb_defender-${{ matrix.rid }}-v${{ vars.RELEASE_VERSION }}.zip
+        --repo ${{ github.event.repository.full_name }}
