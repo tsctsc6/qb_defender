@@ -95,6 +95,7 @@ impl QbClient {
             for torrent in self.torrent_dic.values_mut() {
                 torrent.peer_dic.clear();
             }
+            self.network_dic.clear();
             self.last_reset_time = Local::now();
         }
         Ok(())
