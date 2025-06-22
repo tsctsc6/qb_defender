@@ -1,0 +1,16 @@
+name: Publish2
+
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Build-win-x86_64
+      uses: ./.github/workflows/build-win-x86_64.yml
