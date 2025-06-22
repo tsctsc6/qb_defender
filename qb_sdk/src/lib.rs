@@ -2,9 +2,11 @@ mod web_api;
 
 use chrono::{DateTime, Duration, Local};
 use command::Cli;
+use ip_network::IpNetwork;
 use log;
 use reqwest::Client;
 use std::collections::HashMap;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use tokio::time::sleep;
 
 const F64_ERROR : f64 = 0.00001;
@@ -25,6 +27,7 @@ pub struct QbClient {
     config: Cli,
     last_reset_time: DateTime<Local>,
     torrent_dic: HashMap<String, Torrent>,
+    network_dic: HashMap<String, u64>,
 }
 
 #[derive(Clone, Debug)]
@@ -46,7 +49,9 @@ pub struct Peer {
 impl QbClient {
     pub fn new(cli: Cli) -> Self {
         QbClient{client: Client::new(), config: cli,
-            last_reset_time: Local::now() - Duration::days(2), torrent_dic: HashMap::new() }
+            last_reset_time: Local::now() - Duration::days(2), torrent_dic: HashMap::new(),
+            network_dic: HashMap::new(),
+        }
     }
 
     pub async fn wait(&self) {
@@ -145,7 +150,11 @@ impl QbClient {
                 Some(v) => v
             };
             for (ip_port, peer) in peers.iter() {
-                if QbClient::judge_banned_1(peer, torrent_size) {
+                let network = match Self::get_network(peer.ip.as_str()) {
+                    None => return Err(format!("Can not get network for {}", peer.ip.as_str())),
+                    Some(v) => v
+                };
+                if Self::judge_banned_1(peer, torrent_size, network.as_str(), &self.network_dic) {
                     ban_peers.push(String::from(ip_port));
                 }
                 let old_peer = old_torrent.peer_dic.insert(String::from(ip_port), peer.clone());
@@ -155,7 +164,7 @@ impl QbClient {
                     }
                     Some(v) => v
                 };
-                if QbClient::judge_banned_2(&old_peer, peer, torrent_size) {
+                if Self::judge_banned_2(&old_peer, peer, torrent_size) {
                     ban_peers.push(String::from(ip_port));
                 }
             }
@@ -179,7 +188,7 @@ impl QbClient {
         Ok(())
     }
 
-    fn judge_banned_1(new: &Peer, torrent_size: u64) -> bool {
+    fn judge_banned_1(new: &Peer, torrent_size: u64, network: &str, network_dic: &HashMap<String, u64>) -> bool {
         // 客户端名称只允许：
         // ASCII 字符（Unicode 码点 0x20（空格） 到 0x7E（'~'））
         // 'µ'（0xB5），'μ'（0x03BC）
@@ -209,6 +218,17 @@ impl QbClient {
             return true;
         }
 
+        // 通过网段禁用
+        match network_dic.get(network) {
+            None => {}
+            Some(count) => {
+                if *count >= 5 {
+                    log::log(format!("Banned - Same network client: {}:{}", new.ip, new.port).as_str());
+                    return true;
+                }
+            }
+        }
+
         // 总上传 大于 报告进度 * 种子大小 + 10 MB
         if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
             log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
@@ -234,5 +254,27 @@ impl QbClient {
         }
 
         false
+    }
+
+    fn get_network(ip: &str) -> Option<String> {
+        let mut network_string: Option<String> = None;
+
+        match ip.parse::<Ipv4Addr>() {
+            Ok(addr) => {
+                let network = IpNetwork::new_truncate(addr, 24).unwrap();
+                network_string = Some(network.to_string());
+            }
+            Err(_) => {}
+        };
+
+        match ip.parse::<Ipv6Addr>() {
+            Ok(addr) => {
+                let network = IpNetwork::new_truncate(addr, 64).unwrap();
+                network_string = Some(network.to_string());
+            }
+            Err(_) => {}
+        };
+
+        network_string
     }
 }
