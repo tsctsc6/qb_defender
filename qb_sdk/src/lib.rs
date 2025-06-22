@@ -156,6 +156,11 @@ impl QbClient {
                 };
                 if Self::judge_banned_1(peer, torrent_size, network.as_str(), &self.network_dic) {
                     ban_peers.push(String::from(ip_port));
+                    let count = match self.network_dic.get(peer.ip.as_str()) {
+                        None => 1,
+                        Some(v) => *v + 1,
+                    };
+                    self.network_dic.insert(String::from(peer.ip.as_str()), count);
                 }
                 let old_peer = old_torrent.peer_dic.insert(String::from(ip_port), peer.clone());
                 let old_peer = match old_peer{
@@ -166,6 +171,11 @@ impl QbClient {
                 };
                 if Self::judge_banned_2(&old_peer, peer, torrent_size) {
                     ban_peers.push(String::from(ip_port));
+                    let count = match self.network_dic.get(peer.ip.as_str()) {
+                        None => 1,
+                        Some(v) => *v + 1,
+                    };
+                    self.network_dic.insert(String::from(peer.ip.as_str()), count);
                 }
             }
         }
@@ -185,6 +195,7 @@ impl QbClient {
         if !resp.status().is_success() {
             return Err(format!("Can't get QBittorrent torrents info:\n{}", resp.status()))
         }
+
         Ok(())
     }
 
