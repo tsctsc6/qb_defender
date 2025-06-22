@@ -145,6 +145,9 @@ impl QbClient {
                 Some(v) => v
             };
             for (ip_port, peer) in peers.iter() {
+                if QbClient::judge_banned_1(peer, torrent_size) {
+                    ban_peers.push(String::from(ip_port));
+                }
                 let old_peer = old_torrent.peer_dic.insert(String::from(ip_port), peer.clone());
                 let old_peer = match old_peer{
                     None => {
@@ -152,7 +155,7 @@ impl QbClient {
                     }
                     Some(v) => v
                 };
-                if QbClient::judge_banned(&old_peer, peer, torrent_size) {
+                if QbClient::judge_banned_2(&old_peer, peer, torrent_size) {
                     ban_peers.push(String::from(ip_port));
                 }
             }
@@ -175,8 +178,8 @@ impl QbClient {
         }
         Ok(())
     }
-    fn judge_banned(old: &Peer, new: &Peer, torrent_size: u64) -> bool
-    {
+
+    fn judge_banned_1(new: &Peer, torrent_size: u64) -> bool {
         // 客户端名称只允许：
         // ASCII 字符（Unicode 码点 0x20（空格） 到 0x7E（'~'））
         // 'µ'（0xB5），'μ'（0x03BC）
@@ -211,7 +214,11 @@ impl QbClient {
             log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
             return true;
         }
+        
+        false
+    }
 
+    fn judge_banned_2(old: &Peer, new: &Peer, torrent_size: u64) -> bool {
         // 进度倒退
         if new.progress < old.progress {
             log::log(format!("Banned - Progress is regressive: {}:{}", new.ip, new.port).as_str());
