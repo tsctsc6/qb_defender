@@ -1,0 +1,38 @@
+name: Build-win-x86_64
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  target_toolchain: x86_64-pc-windows-msvc
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install target toolchain
+      run: |
+        rustup target add ${{ env.target_toolchain }}
+    
+    - name: Build not linux
+      run: |
+        cargo build --target ${{ env.target_toolchain }} --release
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: win-x86_64-bundle
+        path: ./target/${{ env.target_toolchain }}/release/qb_defender.exe
+        if-no-files-found: error
