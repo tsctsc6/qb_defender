@@ -206,7 +206,7 @@ impl QbClient {
         // 'µ'（0xB5），'μ'（0x03BC）
         for c in new.client.chars() {
             if c < ' ' || (c > '~' && c != 'µ' && c != 'μ') {
-                log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
+                log::log(format!("Banned - Weird Client: {}:{}, \"{}\"", new.ip, new.port, new.client).as_str());
                 return true;
             }
         }
@@ -214,7 +214,7 @@ impl QbClient {
         // 诡异客户端
         if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
             || new.client.starts_with("Unknown") {
-            log::log(format!("Banned - Weird Client: {}:{}", new.ip, new.port).as_str());
+            log::log(format!("Banned - Weird Client: {}:{}, \"{}\"", new.ip, new.port, new.client).as_str());
             return true;
         }
 
