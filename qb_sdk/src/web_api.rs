@@ -37,7 +37,7 @@ impl QbClient {
     pub(crate) async fn reset_banned_IPs(&self) -> Result<(), String>
     {
         let result = self.web_api_set_preferences()
-            .form(&[("json", r#""{"banned_IPs":""}""#)])
+            .form(&[("json", r#"{"banned_IPs":""}"#)])
             .send()
             .await;
         let resp = match result {
