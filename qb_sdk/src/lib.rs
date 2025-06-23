@@ -161,7 +161,7 @@ impl QbClient {
                         None => 1,
                         Some(v) => *v + 1,
                     };
-                    self.network_dic.insert(String::from(peer.ip.as_str()), count);
+                    self.network_dic.insert(network.clone(), count);
                 }
                 let old_peer = old_torrent.peer_dic.insert(String::from(ip_port), peer.clone());
                 let old_peer = match old_peer{
@@ -176,7 +176,7 @@ impl QbClient {
                         None => 1,
                         Some(v) => *v + 1,
                     };
-                    self.network_dic.insert(String::from(peer.ip.as_str()), count);
+                    self.network_dic.insert(network.clone(), count);
                 }
             }
         }
