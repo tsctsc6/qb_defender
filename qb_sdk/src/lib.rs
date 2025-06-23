@@ -269,24 +269,16 @@ impl QbClient {
     }
 
     fn get_network(ip: &str) -> Option<String> {
-        let mut network_string: Option<String> = None;
-
-        match ip.parse::<Ipv4Addr>() {
-            Ok(addr) => {
-                let network = IpNetwork::new_truncate(addr, 24).unwrap();
-                network_string = Some(network.to_string());
-            }
-            Err(_) => {}
-        };
-
-        match ip.parse::<Ipv6Addr>() {
-            Ok(addr) => {
-                let network = IpNetwork::new_truncate(addr, 64).unwrap();
-                network_string = Some(network.to_string());
-            }
-            Err(_) => {}
-        };
-
-        network_string
+        if let Ok(addr) = ip.parse::<Ipv4Addr>() {
+            let network = IpNetwork::new_truncate(addr, 24).unwrap();
+            Some(network.to_string())
+        }
+        else if let Ok(addr) = ip.parse::<Ipv6Addr>() {
+            let network = IpNetwork::new_truncate(addr, 64).unwrap();
+            Some(network.to_string())
+        }
+        else {
+            None
+        }
     }
 }
