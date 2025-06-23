@@ -157,11 +157,13 @@ impl QbClient {
                 };
                 if Self::judge_banned_1(peer, torrent_size, network.as_str(), &self.network_dic) {
                     ban_peers.push(String::from(ip_port));
-                    let count = match self.network_dic.get(peer.ip.as_str()) {
-                        None => 1,
-                        Some(v) => *v + 1,
+                    match self.network_dic.get_mut(network.as_str()) {
+                        None => {
+                            self.network_dic.insert(network.clone(), 1);
+                        },
+                        Some(v) => *v = *v + 1,
                     };
-                    self.network_dic.insert(String::from(peer.ip.as_str()), count);
+                    continue;
                 }
                 let old_peer = old_torrent.peer_dic.insert(String::from(ip_port), peer.clone());
                 let old_peer = match old_peer{
@@ -172,11 +174,12 @@ impl QbClient {
                 };
                 if Self::judge_banned_2(&old_peer, peer, torrent_size) {
                     ban_peers.push(String::from(ip_port));
-                    let count = match self.network_dic.get(peer.ip.as_str()) {
-                        None => 1,
-                        Some(v) => *v + 1,
+                    match self.network_dic.get_mut(network.as_str()) {
+                        None => {
+                            self.network_dic.insert(network.clone(), 1);
+                        },
+                        Some(v) => *v = *v + 1,
                     };
-                    self.network_dic.insert(String::from(peer.ip.as_str()), count);
                 }
             }
         }
@@ -184,6 +187,7 @@ impl QbClient {
         if ban_peers.len() == 0 {
             return Ok(())
         };
+        println!("network {:#?}", self.network_dic);
         let peers = ban_peers.join("|");
         let resp = match self.web_api_ban_peers()
             .form(&[("peers", peers.as_str())])
