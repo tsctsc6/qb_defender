@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-command = { path = "command"}
-log = { path = "log"}
-qb_sdk = { path = "qb_sdk"}
+command = { path = "command" }
+log = { path = "log" }
+qb_sdk = { path = "qb_sdk" }
 
 [dependencies]
 tokio = { version = "1.45.1", features = ["full"] }

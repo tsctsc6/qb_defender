@@ -4,7 +4,7 @@ use qb_sdk;
 
 #[tokio::main]
 async fn main() -> Result<(), i32> {
-    match run().await{
+    match run().await {
         Ok(_) => Ok(()),
         Err(e) => {
             log::log(e.as_str());
