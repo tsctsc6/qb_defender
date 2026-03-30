@@ -1,9 +1,8 @@
 mod web_api;
 
 use chrono::{DateTime, Duration, Local};
-use command::Cli;
 use ip_network::IpNetwork;
-use log;
+use log::{self, debug, error, info};
 use reqwest::Client;
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -69,7 +68,8 @@ const ANCIENT_CLIENTS: [&str; 16] = [
 
 pub struct QbClient {
     client: Client,
-    config: Cli,
+    port: u16,
+    interval: u64,
     last_reset_time: DateTime<Local>,
     torrent_dic: HashMap<String, Torrent>,
     network_dic: HashMap<String, u64>,
@@ -92,10 +92,11 @@ pub struct Peer {
 }
 
 impl QbClient {
-    pub fn new(cli: Cli) -> Self {
+    pub fn new(port: u16, interval: u64) -> Self {
         QbClient {
             client: Client::new(),
-            config: cli,
+            port,
+            interval,
             last_reset_time: Local::now() - Duration::days(2),
             torrent_dic: HashMap::new(),
             network_dic: HashMap::new(),
@@ -103,7 +104,7 @@ impl QbClient {
     }
 
     pub async fn wait(&self) {
-        sleep(std::time::Duration::from_secs(self.config.interval)).await;
+        sleep(std::time::Duration::from_secs(self.interval)).await;
     }
 
     pub async fn ensure_api_version(&self) -> Result<(), String> {
@@ -111,12 +112,9 @@ impl QbClient {
             match self.get_api_version().await {
                 Ok(version) => break version,
                 Err(_) => {
-                    log::log(
-                        format!(
-                            "Can't connect to qBittorrent WebUI, wait {} seconds to reconnect!",
-                            self.config.interval
-                        )
-                        .as_str(),
+                    error!(
+                        "Can't connect to qBittorrent WebUI, wait {} seconds to reconnect!",
+                        self.interval,
                     );
                     self.wait().await;
                 }
@@ -200,10 +198,7 @@ impl QbClient {
             let torrent_size = *&self.torrent_dic[hash.as_str()].size;
             let old_torrent = match self.torrent_dic.get_mut(hash.as_str()) {
                 None => {
-                    log::log(&format!(
-                        "Can't get QBittorrent peers from local dic: {:#?}",
-                        hash
-                    ));
+                    error!("Can't get QBittorrent peers from local dic: {:#?}", hash);
                     continue;
                 }
                 Some(v) => v,
@@ -247,7 +242,7 @@ impl QbClient {
         if ban_peers.len() == 0 {
             return Ok(());
         };
-        println!("network {:#?}", self.network_dic);
+        debug!("network {:#?}", self.network_dic);
         let peers = ban_peers.join("|");
         let resp = match self
             .web_api_ban_peers()
@@ -295,13 +290,13 @@ impl QbClient {
 
         // 吸血客户端
         if LEECH_CLIENTS.contains(&new.client.as_str()) {
-            log::log(format!("Banned - Leech Client: {}:{}", new.ip, new.port).as_str());
+            info!("Banned - Leech Client: {}:{}", new.ip, new.port);
             return true;
         }
 
         // 上古客户端
         if ANCIENT_CLIENTS.contains(&new.client.as_str()) {
-            log::log(format!("Banned - Ancient Client: {}:{}", new.ip, new.port).as_str());
+            info!("Banned - Ancient Client: {}:{}", new.ip, new.port);
             return true;
         }
 
@@ -310,9 +305,7 @@ impl QbClient {
             None => {}
             Some(count) => {
                 if *count >= 5 {
-                    log::log(
-                        format!("Banned - Same network client: {}:{}", new.ip, new.port).as_str(),
-                    );
+                    info!("Banned - Same network client: {}:{}", new.ip, new.port);
                     return true;
                 }
             }
@@ -320,7 +313,7 @@ impl QbClient {
 
         // 总上传 大于 报告进度 * 种子大小 + 10 MB
         if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
-            log::log(format!("Banned - Too much upload: {}:{}", new.ip, new.port).as_str());
+            info!("Banned - Too much upload: {}:{}", new.ip, new.port);
             return true;
         }
 
@@ -330,7 +323,7 @@ impl QbClient {
     fn judge_banned_2(old: &Peer, new: &Peer, torrent_size: u64) -> bool {
         // 进度倒退
         if new.progress < old.progress {
-            log::log(format!("Banned - Progress is regressive: {}:{}", new.ip, new.port).as_str());
+            info!("Banned - Progress is regressive: {}:{}", new.ip, new.port);
             return true;
         }
 
@@ -338,9 +331,7 @@ impl QbClient {
         let diff_uploaded = new.uploaded - old.uploaded;
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
-            log::log(
-                format!("Banned - Progress is not expected: {}:{}", new.ip, new.port).as_str(),
-            );
+            info!("Banned - Progress is not expected: {}:{}", new.ip, new.port);
             return true;
         }
 

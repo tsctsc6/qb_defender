@@ -1,11 +1,12 @@
 use crate::{Peer, QbClient, Torrent};
+use log::info;
 use reqwest::{Error, RequestBuilder};
 use serde_json::Value;
 use std::collections::HashMap;
 
 impl QbClient {
     pub(crate) fn get_host(&self) -> String {
-        format!("http://127.0.0.1:{}", self.config.port)
+        format!("http://127.0.0.1:{}", self.port)
     }
 
     pub(crate) fn web_api_set_preferences(&self) -> RequestBuilder {
@@ -53,7 +54,7 @@ impl QbClient {
         if !resp.status().is_success() {
             return Err(format!("Can't reset QBittorrent IPs:\n{:#?}", resp));
         }
-        log::log("Reset banned IPs!");
+        info!("Reset banned IPs!");
         Ok(())
     }
 
