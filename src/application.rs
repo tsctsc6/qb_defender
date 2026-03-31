@@ -11,7 +11,7 @@ use tokio::time::sleep;
 
 const F64_ERROR: f64 = 0.00001;
 
-const LEECH_CLIENTS: [&str; 34] = [
+const LEECH_CLIENTS: [&str; 36] = [
     "-XL",
     "Xunlei",
     "XunLei",
@@ -44,8 +44,10 @@ const LEECH_CLIENTS: [&str; 34] = [
     "seanime (devel) (anacrolix/torrent",
     "HitomiDownloader",
     "gateway (devel) (anacrolix/torrent",
-    "offline-download (devel) (anacrolix/torrent",
+    "offline-download",
     "QQDownload",
+    "git.woa.com",
+    "iLivid",
 ];
 
 const ANCIENT_CLIENTS: [&str; 16] = [
