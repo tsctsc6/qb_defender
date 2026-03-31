@@ -9,7 +9,7 @@ pub struct Cli {
     #[arg(short, long, default_value_t = 10)]
     pub interval: u64,
 
-    /// Increase verbosity, repeat for more verbosity
+    /// Increase verbosity, repeat for more verbosity, default is 3 (info)
     #[arg(
         short = 'v',
         long,
