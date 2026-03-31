@@ -69,25 +69,25 @@ const ANCIENT_CLIENTS: [&str; 16] = [
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("QBittorrent SDK error: {0}")]
+    #[error("QBittorrent SDK error:\n{0}")]
     QBSDKError(#[from] qb_sdk::Error),
 
-    #[error("Parse QBittorrent API version error: {0}")]
+    #[error("Parse QBittorrent API version error:\n{0}")]
     ParseQBAPIVersionError(#[from] std::num::ParseIntError),
 
-    #[error("QBittorrent API version error: {0}")]
+    #[error("QBittorrent API version error:\n{0}")]
     QBAPIVersionError(String),
 
-    #[error("Get network error: {0}")]
+    #[error("Get network error:\n{0}")]
     GetNetworkError(#[from] GetNetworkError),
 }
 
 #[derive(Error, Debug)]
 pub enum GetNetworkError {
-    #[error("IP address parse error: {0}")]
+    #[error("IP address parse error:\n{0}")]
     IPAddrParseError(#[from] std::net::AddrParseError),
 
-    #[error("Invalid IP address")]
+    #[error("Invalid IP address:\n{0}")]
     IpNetworkError(#[from] ip_network::IpNetworkError),
 }
 
@@ -316,7 +316,10 @@ impl Application {
         let diff_uploaded = new.uploaded - old.uploaded;
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
-            info!("Banned - Progress is not expected: [{}]:{}", new.ip, new.port);
+            info!(
+                "Banned - Progress is not expected: [{}]:{}",
+                new.ip, new.port
+            );
             return true;
         }
 

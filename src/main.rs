@@ -22,7 +22,7 @@ async fn main() -> Result<(), i32> {
     match run(cli.port, cli.interval).await {
         Ok(_) => Ok(()),
         Err(e) => {
-            error!("Error: {}", e);
+            error!("{}", e);
             Err(1)
         }
     }
@@ -30,7 +30,7 @@ async fn main() -> Result<(), i32> {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Application error: {0}")]
+    #[error("Application error:\n{0}")]
     ApplicationError(#[from] application::Error),
 }
 

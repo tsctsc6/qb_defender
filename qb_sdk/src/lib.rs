@@ -27,16 +27,16 @@ pub struct Peer {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("HTTP request error: {0}")]
+    #[error("HTTP request error:\n{0}")]
     HttpRequestError(#[from] reqwest::Error),
 
-    #[error("HTTP error: {0}")]
+    #[error("HTTP error:\n{0}")]
     HttpResponseError(String),
 
-    #[error("Json error: {0}")]
+    #[error("Json error:\n{0}")]
     JsonError(#[from] serde_json::Error),
 
-    #[error("Json type error: {0}")]
+    #[error("Json type error:\n{0}")]
     JsonTypeError(String),
 }
 

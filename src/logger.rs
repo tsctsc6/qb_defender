@@ -11,7 +11,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Rolling file error: {0}")]
+    #[error("Rolling file error:\n{0}")]
     RollingFileError(#[from] tracing_appender::rolling::InitError),
 }
 
