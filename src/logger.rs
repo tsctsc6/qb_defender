@@ -15,7 +15,6 @@ pub enum Error {
 pub fn init_logger(verbose: u8) -> Result<WorkerGuard, Error> {
     let file_appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
-        .filename_prefix("app")
         .filename_suffix("log")
         .max_log_files(7)
         .build("logs")?;
