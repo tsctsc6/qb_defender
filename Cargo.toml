@@ -11,9 +11,16 @@ qb_sdk = { path = "qb_sdk" }
 [dependencies]
 tokio = { version = "1.45.1", features = ["full"] }
 clap = { version = "4.5.39", features = ["derive"] }
+
 log = "0.4.29"
-fern = { version = "0.7", features = ["colored"] }
-tracing-appender = "0.2"
-chrono = "0.4"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = [
+    "env-filter",
+    "fmt",
+    "time",
+] }
+tracing-appender = "0.2.4"
+time = { version = "0.3.47", features = ["formatting", "macros"] }
+
 thiserror = "2.0.18"
 qb_sdk = { workspace = true }
