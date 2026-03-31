@@ -8,7 +8,8 @@ mod logger;
 
 #[tokio::main]
 async fn main() -> Result<(), i32> {
-    let _guard = match logger::init_logger() {
+    let cli = command::Cli::parse();
+    let _guard = match logger::init_logger(cli.verbose) {
         Ok(guard) => guard,
         Err(e) => {
             error!("{}", e);

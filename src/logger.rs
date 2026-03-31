@@ -6,17 +6,13 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Failed to initialize logger: {0}")]
-    SetLoggerError(#[from] log::SetLoggerError),
-
     #[error("Rolling file error: {0}")]
     RollingFileError(#[from] tracing_appender::rolling::InitError),
-
-    #[error("IO error: {0}")]
-    IOError(#[from] std::io::Error),
 }
 
-pub fn init_logger() -> Result<WorkerGuard, Error> {
+/// Initializes the logger with both console and file outputs, using a rolling file appender.
+/// WorkerGuard must keep alive in main thread to ensure logs are flushed properly.
+pub fn init_logger(verbose: u8) -> Result<WorkerGuard, Error> {
     let file_appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
         .filename_prefix("app")
@@ -24,7 +20,6 @@ pub fn init_logger() -> Result<WorkerGuard, Error> {
         .max_log_files(7)
         .build("logs")?;
 
-    // guard must keep alive to ensure logs are flushed properly
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(file_appender);
 
     let time_format =
@@ -44,7 +39,7 @@ pub fn init_logger() -> Result<WorkerGuard, Error> {
         .with_ansi(false) // color disabled for file
         .with_level(true);
 
-    let env_filter = EnvFilter::new("debug");
+    let env_filter = EnvFilter::new(get_log_level(verbose));
 
     tracing_subscriber::registry()
         .with(env_filter)
@@ -53,4 +48,15 @@ pub fn init_logger() -> Result<WorkerGuard, Error> {
         .init();
 
     Ok(guard)
+}
+
+fn get_log_level(verbose: u8) -> &'static str {
+    match verbose {
+        0 => "off",
+        1 => "error",
+        2 => "warn",
+        3 => "info",
+        4 => "debug",
+        _ => "trace",
+    }
 }

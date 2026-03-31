@@ -8,4 +8,14 @@ pub struct Cli {
 
     #[arg(short, long, default_value_t = 10)]
     pub interval: u64,
+
+    /// Increase verbosity, repeat for more verbosity
+    #[arg(
+        short = 'v',
+        long,
+        action = clap::ArgAction::Count,
+        global = true,
+        default_value_t = 3
+    )]
+    pub verbose: u8,
 }
