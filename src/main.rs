@@ -1,8 +1,11 @@
 use clap::Parser;
-
 use log::error;
 use qb_sdk;
+use thiserror::Error;
 
+use crate::application::Application;
+
+mod application;
 mod command;
 mod logger;
 
@@ -16,7 +19,7 @@ async fn main() -> Result<(), i32> {
             return Err(1);
         }
     };
-    match run().await {
+    match run(cli.port, cli.interval).await {
         Ok(_) => Ok(()),
         Err(e) => {
             error!("Error: {}", e);
@@ -25,13 +28,19 @@ async fn main() -> Result<(), i32> {
     }
 }
 
-async fn run() -> Result<(), String> {
-    let cli = command::Cli::parse();
-    let mut qb_client = qb_sdk::QbClient::new(cli.port, cli.interval);
-    qb_client.ensure_api_version().await?;
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Application error: {0}")]
+    ApplicationError(#[from] application::Error),
+}
+
+async fn run(port: u16, interval: u64) -> Result<(), Error> {
+    let qb_client = qb_sdk::QbClient::new(port);
+    let mut application = Application::new(qb_client, interval);
+    application.ensure_api_version().await?;
     loop {
-        qb_client.try_reset_banned_IPs().await?;
-        qb_client.record_and_ban_peers().await?;
-        qb_client.wait().await;
+        application.try_reset_banned_IPs().await?;
+        application.record_and_ban_peers().await?;
+        application.wait().await;
     }
 }
