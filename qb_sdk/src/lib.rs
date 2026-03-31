@@ -1,8 +1,8 @@
-use log::info;
 use reqwest::{Client, RequestBuilder};
 use serde_json::Value;
 use std::collections::HashMap;
 use thiserror::Error;
+use tracing::info;
 
 pub struct QbClient {
     client: Client,

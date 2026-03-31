@@ -1,7 +1,7 @@
 use clap::Parser;
-use log::error;
 use qb_sdk;
 use thiserror::Error;
+use tracing::error;
 
 use crate::application::Application;
 

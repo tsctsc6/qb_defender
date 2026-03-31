@@ -1,6 +1,5 @@
 use chrono::{DateTime, Duration, Local};
 use ip_network::IpNetwork;
-use log::{self, debug, error, info};
 use qb_sdk::Peer;
 use qb_sdk::QbClient;
 use qb_sdk::Torrent;
@@ -8,6 +7,7 @@ use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 use tokio::time::sleep;
+use tracing::{debug, error, info};
 
 const F64_ERROR: f64 = 0.00001;
 
@@ -97,7 +97,9 @@ pub struct Application {
     qb_client: QbClient,
     interval: u64,
     last_reset_time: DateTime<Local>,
+    /// hash, torrent
     torrent_dic: HashMap<String, Torrent>,
+    /// network, banned ip count
     network_dic: HashMap<String, u64>,
 }
 
@@ -181,9 +183,9 @@ impl Application {
             }
         }
 
-        // 移除没有出现的 peer
+        // 移除qb那边没有出现的 peer
         for (_, torrent) in self.torrent_dic.iter_mut() {
-            let ip_ports_from_self = torrent
+            let ip_ports_from_this_process = torrent
                 .peer_dic
                 .iter()
                 .filter_map(|(k, _)| Some(String::from(k)))
@@ -193,7 +195,7 @@ impl Application {
                     Some(v) => v,
                     None => continue,
                 };
-            for ip_port in ip_ports_from_self {
+            for ip_port in ip_ports_from_this_process {
                 if !torrent_from_torrent_ip_peer_from_qb.contains_key(ip_port.as_str()) {
                     torrent.peer_dic.remove(ip_port.as_str());
                 }

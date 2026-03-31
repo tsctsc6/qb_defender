@@ -978,7 +978,6 @@ dependencies = [
  "chrono",
  "clap",
  "ip_network",
- "log",
  "qb_sdk",
  "thiserror 2.0.18",
  "time",
@@ -992,11 +991,11 @@ dependencies = [
 name = "qb_sdk"
 version = "0.2.0"
 dependencies = [
- "log",
  "reqwest",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
