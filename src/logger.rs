@@ -26,9 +26,11 @@ pub fn init_logger(verbose: u8) -> Result<WorkerGuard, Error> {
 
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(file_appender);
 
-    let console_layer = fmt::layer().event_format(MyCustomFormatter {
-        display_colors: true,
-    });
+    let console_layer = fmt::layer()
+        .with_writer(std::io::stderr)
+        .event_format(MyCustomFormatter {
+            display_colors: true,
+        });
 
     let file_layer = fmt::layer()
         .with_writer(non_blocking_appender)
