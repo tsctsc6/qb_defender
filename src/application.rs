@@ -261,7 +261,7 @@ impl Application {
         // 'µ'（0xB5），'μ'（0x03BC）
         /*for c in new.client.chars() {
             if c < ' ' || (c > '~' && c != 'µ' && c != 'μ') {
-                log::log(format!("Banned - Weird Client: {}:{}, \"{}\"", new.ip, new.port, new.client).as_str());
+                info!("Banned - Weird Client: [{}]:{}", new.ip, new.port, new.client);
                 return true;
             }
         }*/
@@ -269,19 +269,19 @@ impl Application {
         // 诡异客户端
         /*if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
             || new.client.starts_with("Unknown") {
-            log::log(format!("Banned - Weird Client: {}:{}, \"{}\"", new.ip, new.port, new.client).as_str());
+            info!("Banned - Weird Client: [{}]:{}", new.ip, new.port, new.client);
             return true;
         }*/
 
         // 吸血客户端
         if LEECH_CLIENTS.contains(&new.client.as_str()) {
-            info!("Banned - Leech Client: {}:{}", new.ip, new.port);
+            info!("Banned - Leech Client: [{}]:{}", new.ip, new.port);
             return true;
         }
 
         // 上古客户端
         if ANCIENT_CLIENTS.contains(&new.client.as_str()) {
-            info!("Banned - Ancient Client: {}:{}", new.ip, new.port);
+            info!("Banned - Ancient Client: [{}]:{}", new.ip, new.port);
             return true;
         }
 
@@ -290,7 +290,7 @@ impl Application {
             None => {}
             Some(count) => {
                 if *count >= 5 {
-                    info!("Banned - Same network client: {}:{}", new.ip, new.port);
+                    info!("Banned - Same network client: [{}]:{}", new.ip, new.port);
                     return true;
                 }
             }
@@ -298,7 +298,7 @@ impl Application {
 
         // 总上传 大于 报告进度 * 种子大小 + 10 MB
         if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
-            info!("Banned - Too much upload: {}:{}", new.ip, new.port);
+            info!("Banned - Too much upload: [{}]:{}", new.ip, new.port);
             return true;
         }
 
@@ -308,7 +308,7 @@ impl Application {
     fn judge_banned_2(old: &Peer, new: &Peer, torrent_size: u64) -> bool {
         // 进度倒退
         if new.progress < old.progress {
-            info!("Banned - Progress is regressive: {}:{}", new.ip, new.port);
+            info!("Banned - Progress is regressive: [{}]:{}", new.ip, new.port);
             return true;
         }
 
@@ -316,7 +316,7 @@ impl Application {
         let diff_uploaded = new.uploaded - old.uploaded;
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
-            info!("Banned - Progress is not expected: {}:{}", new.ip, new.port);
+            info!("Banned - Progress is not expected: [{}]:{}", new.ip, new.port);
             return true;
         }
 
