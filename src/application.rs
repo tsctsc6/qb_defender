@@ -119,18 +119,7 @@ impl Application {
     }
 
     pub async fn ensure_api_version(&self) -> Result<(), Error> {
-        let api_version = loop {
-            match self.qb_client.get_api_version().await {
-                Ok(version) => break version,
-                Err(_) => {
-                    error!(
-                        "Can't connect to qBittorrent WebUI, wait {} seconds to reconnect!",
-                        self.interval,
-                    );
-                    self.wait().await;
-                }
-            }
-        };
+        let api_version = self.qb_client.get_api_version().await?;
         let api_versions = api_version
             .split('.')
             .map(|s| s.parse::<i32>())

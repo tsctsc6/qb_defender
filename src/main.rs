@@ -12,6 +12,7 @@ mod logger;
 #[tokio::main]
 async fn main() -> Result<(), i32> {
     let cli = command::Cli::parse();
+
     let _guard = match logger::init_logger(cli.verbose) {
         Ok(guard) => guard,
         Err(e) => {
@@ -19,13 +20,18 @@ async fn main() -> Result<(), i32> {
             return Err(1);
         }
     };
-    match run(cli.port, cli.interval).await {
-        Ok(_) => Ok(()),
+
+    let mut application = match setup(cli.port, cli.interval).await {
+        Ok(app) => app,
         Err(e) => {
             error!("{}", e);
-            Err(1)
+            return Err(1);
         }
-    }
+    };
+
+    run_loop(&mut application).await;
+
+    return Ok(());
 }
 
 #[derive(Error, Debug)]
@@ -34,13 +40,24 @@ pub enum Error {
     ApplicationError(#[from] application::Error),
 }
 
-async fn run(port: u16, interval: u64) -> Result<(), Error> {
+async fn setup(port: u16, interval: u64) -> Result<Application, Error> {
     let qb_client = qb_sdk::QbClient::new(port);
-    let mut application = Application::new(qb_client, interval);
+    let application = Application::new(qb_client, interval);
     application.ensure_api_version().await?;
+    Ok(application)
+}
+
+async fn run(application: &mut Application) -> Result<(), Error> {
+    application.try_reset_banned_IPs().await?;
+    application.record_and_ban_peers().await?;
+    Ok(())
+}
+
+async fn run_loop(application: &mut Application) -> () {
     loop {
-        application.try_reset_banned_IPs().await?;
-        application.record_and_ban_peers().await?;
+        if let Err(e) = run(application).await {
+            error!("{}", e);
+        }
         application.wait().await;
     }
 }
