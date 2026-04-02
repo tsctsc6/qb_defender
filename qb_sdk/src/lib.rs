@@ -13,7 +13,6 @@ pub struct QbClient {
 pub struct Torrent {
     pub hash: String,
     pub size: u64,
-    pub peer_dic: HashMap<String, Peer>,
 }
 
 #[derive(Clone, Debug)]
@@ -125,7 +124,6 @@ impl QbClient {
                 Some(Torrent {
                     hash: String::from(hash),
                     size,
-                    peer_dic: HashMap::new(),
                 })
             })
             .collect();

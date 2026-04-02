@@ -2,14 +2,13 @@ use chrono::{DateTime, Duration, Local};
 use ip_network::IpNetwork;
 use qb_sdk::Peer;
 use qb_sdk::QbClient;
-use qb_sdk::Torrent;
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
-const F64_ERROR: f64 = 0.00001;
+const F64_ERROR: f64 = 0.0001;
 
 const LEECH_CLIENTS: [&str; 36] = [
     "-XL",
@@ -69,6 +68,13 @@ const ANCIENT_CLIENTS: [&str; 16] = [
     "μTorrent 1.",
 ];
 
+#[derive(Clone, Debug)]
+pub struct Torrent {
+    pub size: u64,
+    /// ip and port, peer info
+    pub peers: HashMap<String, Peer>,
+}
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("QBittorrent SDK error:\n{0}")]
@@ -98,7 +104,8 @@ pub struct Application {
     interval: u64,
     last_reset_time: DateTime<Local>,
     /// hash, torrent
-    torrent_dic: HashMap<String, Torrent>,
+    new_torrent_state: HashMap<String, Torrent>,
+    old_torrent_state: HashMap<String, Torrent>,
     /// network, banned ip count
     network_dic: HashMap<String, u64>,
 }
@@ -109,7 +116,8 @@ impl Application {
             qb_client,
             interval,
             last_reset_time: Local::now() - Duration::days(2),
-            torrent_dic: HashMap::new(),
+            new_torrent_state: HashMap::new(),
+            old_torrent_state: HashMap::new(),
             network_dic: HashMap::new(),
         }
     }
@@ -139,102 +147,44 @@ impl Application {
 
     #[allow(non_snake_case)]
     pub async fn try_reset_banned_IPs(&mut self) -> Result<(), Error> {
-        if Local::now() - self.last_reset_time > Duration::days(1) {
-            self.qb_client.reset_banned_IPs().await?;
-            for torrent in self.torrent_dic.values_mut() {
-                torrent.peer_dic.clear();
-            }
-            self.network_dic.clear();
-            self.last_reset_time = Local::now();
-        }
+        if Local::now() - self.last_reset_time < Duration::days(1) {
+            return Ok(());
+        };
+        self.qb_client.reset_banned_IPs().await?;
+        self.old_torrent_state.clear();
+        self.new_torrent_state.clear();
+        self.network_dic.clear();
+        self.last_reset_time = Local::now();
         Ok(())
     }
 
     pub async fn record_and_ban_peers(&mut self) -> Result<(), Error> {
-        let torrent_array_from_qb = self.qb_client.get_torrents().await?;
-        for torrent in torrent_array_from_qb {
-            match self.torrent_dic.get(torrent.hash.as_str()) {
-                None => {
-                    self.torrent_dic
-                        .insert(String::from(torrent.hash.as_str()), torrent.clone());
-                }
-                Some(_) => {}
-            }
-        }
-        // hsah, ip, info
-        let mut torrent_ip_peer_from_qb: HashMap<String, HashMap<String, Peer>> =
-            HashMap::with_capacity(self.torrent_dic.len());
-        {
-            let torrent_dic = &self.torrent_dic;
-            for (hash, _) in torrent_dic {
-                let hash_peers = self.qb_client.get_peers(hash.as_str()).await?;
-                torrent_ip_peer_from_qb.insert(String::from(hash), hash_peers);
-            }
-        }
-
-        // 移除qb那边没有出现的 peer
-        for (_, torrent) in self.torrent_dic.iter_mut() {
-            let ip_ports_from_this_process = torrent
-                .peer_dic
-                .iter()
-                .filter_map(|(k, _)| Some(String::from(k)))
-                .collect::<Vec<String>>();
-            let torrent_from_torrent_ip_peer_from_qb =
-                match torrent_ip_peer_from_qb.get(torrent.hash.as_str()) {
-                    Some(v) => v,
-                    None => continue,
-                };
-            for ip_port in ip_ports_from_this_process {
-                if !torrent_from_torrent_ip_peer_from_qb.contains_key(ip_port.as_str()) {
-                    torrent.peer_dic.remove(ip_port.as_str());
-                }
-            }
-        }
+        self.update_torrent_state(self.get_torrent_state().await?);
 
         let mut ban_peers: Vec<String> = vec![];
-        // 更新 peer 信息，并判断是否 ban
-        for (hash, peers) in torrent_ip_peer_from_qb.iter() {
-            let torrent_size = *&self.torrent_dic[hash.as_str()].size;
-            let old_torrent = match self.torrent_dic.get_mut(hash.as_str()) {
-                None => {
-                    error!("Can't get QBittorrent peers from local dic: {:#?}", hash);
-                    continue;
-                }
-                Some(v) => v,
-            };
-            for (ip_port, peer) in peers.iter() {
+        for (hash, torrent) in self.new_torrent_state.iter() {
+            for (ip_port, peer) in torrent.peers.iter() {
                 let network = Self::get_network(peer.ip.as_str())?;
-                if Self::judge_banned_1(peer, torrent_size, network.as_str(), &self.network_dic) {
-                    ban_peers.push(String::from(ip_port));
-                    match self.network_dic.get_mut(network.as_str()) {
-                        None => {
-                            self.network_dic.insert(network.clone(), 1);
-                        }
-                        Some(v) => *v = *v + 1,
-                    };
+                if !Self::judge_banned(
+                    torrent.size,
+                    self.old_torrent_state
+                        .get(hash.as_str())
+                        .and_then(|t| t.peers.get(ip_port.as_str())),
+                    peer,
+                    network.as_str(),
+                    &self.network_dic,
+                ) {
                     continue;
                 }
-                let old_peer = old_torrent
-                    .peer_dic
-                    .insert(String::from(ip_port), peer.clone());
-                let old_peer = match old_peer {
+                ban_peers.push(String::from(ip_port));
+                match self.network_dic.get_mut(network.as_str()) {
                     None => {
-                        continue;
+                        self.network_dic.insert(network.clone(), 1);
                     }
-                    Some(v) => v,
+                    Some(v) => *v = *v + 1,
                 };
-                if Self::judge_banned_2(&old_peer, peer, torrent_size) {
-                    ban_peers.push(String::from(ip_port));
-                    match self.network_dic.get_mut(network.as_str()) {
-                        None => {
-                            self.network_dic.insert(network.clone(), 1);
-                        }
-                        Some(v) => *v = *v + 1,
-                    };
-                }
             }
         }
-
         if ban_peers.len() == 0 {
             return Ok(());
         };
@@ -243,15 +193,17 @@ impl Application {
         Ok(())
     }
 
-    fn judge_banned_1(
-        new: &Peer,
+    /// true means should be banned, false means should not be banned. This function is the core of the application.
+    fn judge_banned(
         torrent_size: u64,
+        old: Option<&Peer>,
+        new: &Peer,
         network: &str,
         network_dic: &HashMap<String, u64>,
     ) -> bool {
-        // 客户端名称只允许：
-        // ASCII 字符（Unicode 码点 0x20（空格） 到 0x7E（'~'））
-        // 'µ'（0xB5），'μ'（0x03BC）
+        // Client is only allowed:
+        // ASCII characters (Unicode code points 0x20 (space) to 0x7E ('~'))
+        // 'µ' (0xB5), 'μ' (0x03BC)
         /*for c in new.client.chars() {
             if c < ' ' || (c > '~' && c != 'µ' && c != 'μ') {
                 info!("Banned - Weird Client: [{}]:{}", new.ip, new.port, new.client);
@@ -259,26 +211,26 @@ impl Application {
             }
         }*/
 
-        // 诡异客户端
+        // Weird client, such as client name is too short, or client name has a space in the middle, or client name starts with "Unknown", etc.
         /*if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
             || new.client.starts_with("Unknown") {
             info!("Banned - Weird Client: [{}]:{}", new.ip, new.port, new.client);
             return true;
         }*/
 
-        // 吸血客户端
+        // Leech client
         if LEECH_CLIENTS.contains(&new.client.as_str()) {
             info!("Banned - Leech Client: [{}]:{}", new.ip, new.port);
             return true;
         }
 
-        // 上古客户端
+        // Ancient client
         if ANCIENT_CLIENTS.contains(&new.client.as_str()) {
             info!("Banned - Ancient Client: [{}]:{}", new.ip, new.port);
             return true;
         }
 
-        // 通过网段禁用
+        // Same network client count exceeds 5
         match network_dic.get(network) {
             None => {}
             Some(count) => {
@@ -289,23 +241,24 @@ impl Application {
             }
         }
 
-        // 总上传 大于 报告进度 * 种子大小 + 10 MB
+        // Total upload exceeds reported progress * torrent size + 10 MB
         if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
             info!("Banned - Too much upload: [{}]:{}", new.ip, new.port);
             return true;
         }
 
-        false
-    }
+        let old = match old {
+            Some(old) => old,
+            None => return false,
+        };
 
-    fn judge_banned_2(old: &Peer, new: &Peer, torrent_size: u64) -> bool {
-        // 进度倒退
+        // Progress is regressive
         if new.progress < old.progress {
             info!("Banned - Progress is regressive: [{}]:{}", new.ip, new.port);
             return true;
         }
 
-        // 进度增量小于上传增量
+        // Progress increment is less than upload increment
         let diff_uploaded = new.uploaded - old.uploaded;
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
@@ -331,5 +284,33 @@ impl Application {
         let addr = ip.parse::<Ipv6Addr>()?;
         let network = IpNetwork::new_truncate(addr, 64)?;
         Ok(network.to_string())
+    }
+
+    /// Get torrent and peer info from qbittorrent.
+    async fn get_torrent_state(&self) -> Result<HashMap<String, Torrent>, Error> {
+        let torrent_array = self.qb_client.get_torrents().await?;
+
+        let mut torrent_state: HashMap<String, Torrent> = torrent_array
+            .into_iter()
+            .map(|t| {
+                (
+                    t.hash.clone(),
+                    Torrent {
+                        size: t.size,
+                        peers: HashMap::new(),
+                    },
+                )
+            })
+            .collect();
+        for (hash, torrent) in torrent_state.iter_mut() {
+            let hash_peers = self.qb_client.get_peers(hash.as_str()).await?;
+            torrent.peers = hash_peers;
+        }
+        Ok(torrent_state)
+    }
+
+    /// Update torrent state. This function should be atomicity, however, since we only have one thread, it's ok.
+    fn update_torrent_state(&mut self, new_torrent_state: HashMap<String, Torrent>) {
+        self.old_torrent_state = std::mem::replace(&mut self.new_torrent_state, new_torrent_state);
     }
 }
