@@ -216,6 +216,7 @@ impl Application {
         }*/
 
         // Weird client, such as client name is too short, or client name has a space in the middle, or client name starts with "Unknown", etc.
+        // example: "GT 0.0.0.2", "HP 0.0.0.1", etc.
         /*if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
             || new.client.starts_with("Unknown") {
             info!("Weird Client: [{}]:{}", new.ip, new.port, new.client);
