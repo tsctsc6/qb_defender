@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 use tokio::time::sleep;
+use tracing::warn;
 use tracing::{debug, info};
 
 const F64_ERROR: f64 = 0.0001;
@@ -126,8 +127,24 @@ impl Application {
         sleep(std::time::Duration::from_secs(self.interval)).await;
     }
 
-    pub async fn ensure_api_version(&self) -> Result<(), Error> {
-        let api_version = self.qb_client.get_api_version().await?;
+    /// Try to get QBittorrent API version, if failed, retry until success. This function is used to ensure that the application can work with specific QBittorrent API version, and can be used to wait for QBittorrent to start.
+    pub async fn try_get_api_version(&self) -> String {
+        let api_version = loop {
+            match self.qb_client.get_api_version().await {
+                Ok(api_version) => break api_version,
+                Err(e) => {
+                    warn!(
+                        "{}\nFailed to get QBittorrent API version, retrying in {} seconds...",
+                        e, self.interval
+                    );
+                    sleep(std::time::Duration::from_secs(self.interval)).await;
+                }
+            };
+        };
+        api_version
+    }
+
+    pub async fn ensure_api_version(&self, api_version: String) -> Result<(), Error> {
         let api_versions = api_version
             .split('.')
             .map(|s| s.parse::<i32>())
@@ -267,10 +284,7 @@ impl Application {
         let diff_uploaded = new.uploaded - old.uploaded;
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
-            info!(
-                "Progress is not expected: [{}]:{}",
-                new.ip, new.port
-            );
+            info!("Progress is not expected: [{}]:{}", new.ip, new.port);
             return true;
         }
 
