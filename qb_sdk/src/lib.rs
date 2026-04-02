@@ -6,6 +6,7 @@ use tracing::info;
 
 pub struct QbClient {
     client: Client,
+    host: String,
     port: u16,
 }
 
@@ -40,15 +41,16 @@ pub enum Error {
 }
 
 impl QbClient {
-    pub fn new(port: u16) -> Self {
+    pub fn new(host: String, port: u16) -> Self {
         QbClient {
             client: Client::new(),
+            host,
             port,
         }
     }
 
     pub fn get_host(&self) -> String {
-        format!("http://127.0.0.1:{}", self.port)
+        format!("http://{}:{}", self.host, self.port)
     }
 
     pub fn web_api_set_preferences(&self) -> RequestBuilder {

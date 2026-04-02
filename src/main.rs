@@ -41,7 +41,7 @@ pub enum Error {
 }
 
 async fn setup(port: u16, interval: u64) -> Result<Application, Error> {
-    let qb_client = qb_sdk::QbClient::new(port);
+    let qb_client = qb_sdk::QbClient::new("127.0.0.1".into(), port);
     let application = Application::new(qb_client, interval);
     application.ensure_api_version().await?;
     Ok(application)
