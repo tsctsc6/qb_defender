@@ -176,6 +176,10 @@ impl Application {
                 ) {
                     continue;
                 }
+                debug!(
+                    "Banning peer [{}]:{} in torrent {}",
+                    peer.ip, peer.port, hash
+                );
                 ban_peers.push(String::from(ip_port));
                 match self.network_dic.get_mut(network.as_str()) {
                     None => {
@@ -206,7 +210,7 @@ impl Application {
         // 'µ' (0xB5), 'μ' (0x03BC)
         /*for c in new.client.chars() {
             if c < ' ' || (c > '~' && c != 'µ' && c != 'μ') {
-                info!("Banned - Weird Client: [{}]:{}", new.ip, new.port, new.client);
+                info!("Weird Client: [{}]:{}", new.ip, new.port, new.client);
                 return true;
             }
         }*/
@@ -214,19 +218,19 @@ impl Application {
         // Weird client, such as client name is too short, or client name has a space in the middle, or client name starts with "Unknown", etc.
         /*if new.client.chars().count() < 4 || new.client.chars().collect::<Vec<_>>()[2] == ' '
             || new.client.starts_with("Unknown") {
-            info!("Banned - Weird Client: [{}]:{}", new.ip, new.port, new.client);
+            info!("Weird Client: [{}]:{}", new.ip, new.port, new.client);
             return true;
         }*/
 
         // Leech client
         if LEECH_CLIENTS.contains(&new.client.as_str()) {
-            info!("Banned - Leech Client: [{}]:{}", new.ip, new.port);
+            info!("Leech Client: [{}]:{}", new.ip, new.port);
             return true;
         }
 
         // Ancient client
         if ANCIENT_CLIENTS.contains(&new.client.as_str()) {
-            info!("Banned - Ancient Client: [{}]:{}", new.ip, new.port);
+            info!("Ancient Client: [{}]:{}", new.ip, new.port);
             return true;
         }
 
@@ -235,7 +239,7 @@ impl Application {
             None => {}
             Some(count) => {
                 if *count >= 5 {
-                    info!("Banned - Same network client: [{}]:{}", new.ip, new.port);
+                    info!("Same network client: [{}]:{}", new.ip, new.port);
                     return true;
                 }
             }
@@ -243,7 +247,7 @@ impl Application {
 
         // Total upload exceeds reported progress * torrent size + 10 MB
         if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
-            info!("Banned - Too much upload: [{}]:{}", new.ip, new.port);
+            info!("Too much upload: [{}]:{}", new.ip, new.port);
             return true;
         }
 
@@ -254,7 +258,7 @@ impl Application {
 
         // Progress is regressive
         if new.progress < old.progress {
-            info!("Banned - Progress is regressive: [{}]:{}", new.ip, new.port);
+            info!("Progress is regressive: [{}]:{}", new.ip, new.port);
             return true;
         }
 
@@ -263,7 +267,7 @@ impl Application {
         let diff_progress = new.progress - old.progress;
         if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
             info!(
-                "Banned - Progress is not expected: [{}]:{}",
+                "Progress is not expected: [{}]:{}",
                 new.ip, new.port
             );
             return true;
