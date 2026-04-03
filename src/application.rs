@@ -226,7 +226,9 @@ impl Application {
         }
 
         Self::gen_dat_file(&just_exceeded_the_threshold)?;
-        self.refresh_dat_file().await?;
+        if just_exceeded_the_threshold.len() > 0 {
+            self.refresh_dat_file().await?;
+        }
 
         if ban_peers.len() == 0 {
             return Ok(());
