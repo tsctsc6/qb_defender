@@ -102,7 +102,7 @@ where
             };
             write!(
                 writer,
-                "[{gray_code}{time_str} {color_code}{level:>5} {gray_code}{target}{reset_code}] "
+                "{gray_code}[{time_str} {color_code}{level:>5} {gray_code}{target}]{reset_code} "
             )?;
         } else {
             write!(writer, "[{time_str} {level:>5} {target}] ")?;
