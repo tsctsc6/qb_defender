@@ -1,6 +1,6 @@
 use reqwest::{Client, RequestBuilder};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, path};
 use thiserror::Error;
 use tracing::info;
 
@@ -212,9 +212,10 @@ impl QbClient {
     }
 
     pub async fn set_ip_filter_path(&self, path: &str) -> Result<(), Error> {
+        let path = path.replace("\\", "\\\\");
         let resp = self
             .web_api_set_preferences()
-            .form(&[("json", format!(r#"{{"ip_filter_path":{}}}"#, path))])
+            .form(&[("json", format!(r#"{{"ip_filter_path":"{}"}}"#, path))])
             .send()
             .await?;
         if !resp.status().is_success() {
