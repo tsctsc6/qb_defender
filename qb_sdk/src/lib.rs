@@ -198,4 +198,28 @@ impl QbClient {
         }
         Ok(())
     }
+
+    pub async fn set_ip_filter_enabled(&self, enabled: bool) -> Result<(), Error> {
+        let resp = self
+            .web_api_set_preferences()
+            .form(&[("json", format!(r#"{{"ip_filter_enabled":{}}}"#, enabled))])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(Error::HttpResponseError(format!("{:#?}", resp)));
+        }
+        Ok(())
+    }
+
+    pub async fn set_ip_filter_path(&self, path: &str) -> Result<(), Error> {
+        let resp = self
+            .web_api_set_preferences()
+            .form(&[("json", format!(r#"{{"ip_filter_path":{}}}"#, path))])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(Error::HttpResponseError(format!("{:#?}", resp)));
+        }
+        Ok(())
+    }
 }
