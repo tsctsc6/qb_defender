@@ -1,6 +1,6 @@
 use reqwest::{Client, RequestBuilder};
 use serde_json::Value;
-use std::{collections::HashMap, path};
+use std::collections::HashMap;
 use thiserror::Error;
 use tracing::info;
 

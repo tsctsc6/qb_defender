@@ -7,12 +7,11 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
-use tokio::net;
 use tokio::time::sleep;
 use tracing::warn;
 use tracing::{debug, info};
 
-const F64_ERROR: f64 = 0.0001;
+const REDUNDANT_BYTES: u64 = 10 * 1024 * 1024;
 
 const LEECH_CLIENTS: [&str; 36] = [
     "-XL",
@@ -270,7 +269,7 @@ impl Application {
         }
 
         // Total upload exceeds reported progress * torrent size + 10 MB
-        if new.uploaded > (new.progress * torrent_size as f64) as u64 + 10 * 1024 * 1024 {
+        if new.uploaded > (new.progress * torrent_size as f64) as u64 + REDUNDANT_BYTES {
             info!("Too much upload: [{}]:{}", new.ip, new.port);
             return true;
         }
@@ -280,17 +279,15 @@ impl Application {
             None => return false,
         };
 
-        // Progress is regressive
-        if new.progress < old.progress {
+        // Progress is regressive more than 10MB/TorrentSize
+        if new.progress + (REDUNDANT_BYTES as f64 / torrent_size as f64) < old.progress {
             info!("Progress is regressive: [{}]:{}", new.ip, new.port);
             return true;
         }
 
-        // Progress increment is less than upload increment
-        let diff_uploaded = new.uploaded - old.uploaded;
-        let diff_progress = new.progress - old.progress;
-        if diff_progress < (diff_uploaded as f64 / torrent_size as f64) - F64_ERROR {
-            info!("Progress is not expected: [{}]:{}", new.ip, new.port);
+        // Uploaded is regressive more than 10MB
+        if new.uploaded + REDUNDANT_BYTES < old.uploaded {
+            info!("Uploaded is regressive: [{}]:{}", new.ip, new.port);
             return true;
         }
 
