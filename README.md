@@ -8,11 +8,9 @@ Obtain information through WebUI of qBittorrent at regular intervals, and illega
 
 1. Client name is Leech client or Ancient client. For details, please see src/application.rs
 1. Total upload exceeds reported progress * torrent size + 10 MB
-1. Progress is regressive
-1. Progress increment is less than upload increment
-1. Same network client count exceeds 5. For ipv4, netmask is 24, and for ipv6, netmask is 48
+1. Progress is regressive more than 10MB/TorrentSize
+1. Uploaded is regressive more than 10MB
 1. The banned IPs will reset after running continuously for more than one day.
-
 
 ## Usage
 
@@ -22,6 +20,9 @@ Obtain information through WebUI of qBittorrent at regular intervals, and illega
 > [!TIP]
 > You can start qb_defender as a daemon, like Windows Service, etc.
 
+> [!TIP]
+> Recommended to use in combination with [BT_BAN](https://github.com/Oniicyan/BT_BAN).
+
 ### How to confirm that it is working
 
-You can check the banned IPs by visit "http://127.0.0.1:\<port\>/api/v2/app/preferences".
+You can check the banned IPs by visit "http://127.0.0.1:port/api/v2/app/preferences".
