@@ -3,9 +3,9 @@ use qb_sdk;
 use thiserror::Error;
 use tracing::error;
 
-use crate::application::Application;
+use crate::application_heuristic::Application;
 
-mod application;
+mod application_heuristic;
 mod command;
 mod logger;
 
@@ -37,7 +37,7 @@ async fn main() -> Result<(), i32> {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Application error:\n{0}")]
-    ApplicationError(#[from] application::Error),
+    ApplicationError(#[from] application_heuristic::Error),
 }
 
 async fn setup(port: u16, interval: u64) -> Result<Application, Error> {

@@ -1,11 +1,7 @@
 use chrono::{DateTime, Duration, Local};
-use ip_network::IpNetwork;
 use qb_sdk::Peer;
 use qb_sdk::QbClient;
 use std::collections::HashMap;
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::net::{Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 use tokio::time::sleep;
 use tracing::warn;
@@ -71,8 +67,6 @@ const ANCIENT_CLIENTS: [&str; 16] = [
     "μTorrent 1.",
 ];
 
-const DAT_FILE_PATH: &str = "ban-ip-rule.dat";
-
 #[derive(Clone, Debug)]
 pub struct Torrent {
     pub size: u64,
@@ -117,8 +111,6 @@ pub struct Application {
     /// hash, torrent
     new_torrent_state: HashMap<String, Torrent>,
     old_torrent_state: HashMap<String, Torrent>,
-    /// network, banned ip count
-    network_dic: HashMap<String, u64>,
 }
 
 impl Application {
@@ -129,7 +121,6 @@ impl Application {
             last_reset_time: Local::now() - Duration::days(2),
             new_torrent_state: HashMap::new(),
             old_torrent_state: HashMap::new(),
-            network_dic: HashMap::new(),
         }
     }
 
@@ -180,9 +171,6 @@ impl Application {
         self.qb_client.reset_banned_IPs().await?;
         self.old_torrent_state.clear();
         self.new_torrent_state.clear();
-        self.network_dic.clear();
-        self.clear_dat_file()?;
-        self.refresh_dat_file().await?;
         self.last_reset_time = Local::now();
         Ok(())
     }
@@ -191,11 +179,8 @@ impl Application {
         self.update_torrent_state(self.get_torrent_state().await?);
 
         let mut ban_peers: Vec<String> = vec![];
-        // This time over 5 banned IPs in the same network, we will ban the whole network.
-        let mut just_exceeded_the_threshold: Vec<String> = Vec::new();
         for (hash, torrent) in self.new_torrent_state.iter() {
             for (ip_port, peer) in torrent.peers.iter() {
-                let network = Self::get_network(peer.ip.as_str())?;
                 if !Self::judge_banned(
                     torrent.size,
                     self.old_torrent_state
@@ -210,30 +195,12 @@ impl Application {
                     peer.ip, peer.port, hash
                 );
                 ban_peers.push(String::from(ip_port));
-                match self.network_dic.get_mut(network.as_str()) {
-                    None => {
-                        self.network_dic.insert(network.clone(), 1);
-                    }
-                    Some(v) => {
-                        *v = *v + 1;
-                        if *v == 5 {
-                            just_exceeded_the_threshold.push(network.clone());
-                            info!("Banning network {}", network);
-                        }
-                    }
-                };
             }
-        }
-
-        Self::gen_dat_file(&just_exceeded_the_threshold)?;
-        if just_exceeded_the_threshold.len() > 0 {
-            self.refresh_dat_file().await?;
         }
 
         if ban_peers.len() == 0 {
             return Ok(());
         };
-        debug!("network {:#?}", self.network_dic);
         self.qb_client.ban_peers(ban_peers).await?;
         Ok(())
     }
@@ -296,20 +263,6 @@ impl Application {
         false
     }
 
-    fn get_network(ip: &str) -> Result<String, GetNetworkError> {
-        let addr = ip.parse::<Ipv4Addr>();
-        match addr {
-            Ok(addr) => {
-                let network = IpNetwork::new_truncate(addr, 24)?;
-                return Ok(network.to_string());
-            }
-            Err(_) => {}
-        }
-        let addr = ip.parse::<Ipv6Addr>()?;
-        let network = IpNetwork::new_truncate(addr, 48)?;
-        Ok(network.to_string())
-    }
-
     /// Get torrent and peer info from qbittorrent.
     async fn get_torrent_state(&self) -> Result<HashMap<String, Torrent>, Error> {
         let torrent_array = self.qb_client.get_torrents().await?;
@@ -338,68 +291,11 @@ impl Application {
         self.old_torrent_state = std::mem::replace(&mut self.new_torrent_state, new_torrent_state);
     }
 
+    /*
     fn get_exe_path() -> Result<std::path::PathBuf, Error> {
         let mut exe_path = std::env::current_exe()?;
         exe_path.pop();
         Ok(exe_path)
     }
-
-    async fn refresh_dat_file(&self) -> Result<(), Error> {
-        let mut dat_file_path = Self::get_exe_path()?;
-        dat_file_path.push(DAT_FILE_PATH);
-        let dat_file_path = dat_file_path.to_str().unwrap_or("");
-        self.qb_client.set_ip_filter_enabled(false).await?;
-        self.qb_client.set_ip_filter_path(dat_file_path).await?;
-        self.qb_client.set_ip_filter_enabled(true).await?;
-        Ok(())
-    }
-
-    fn clear_dat_file(&self) -> Result<(), Error> {
-        let mut dat_file_path = Self::get_exe_path()?;
-        dat_file_path.push(DAT_FILE_PATH);
-        let dat_file_path = dat_file_path.to_str().unwrap_or("");
-        let _file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(dat_file_path)?;
-        Ok(())
-    }
-
-    fn gen_dat_file(networks: &Vec<String>) -> Result<(), Error> {
-        if networks.len() == 0 {
-            return Ok(());
-        }
-
-        let mut dat_file_path = Self::get_exe_path()?;
-        dat_file_path.push(DAT_FILE_PATH);
-        let dat_file_path = dat_file_path.to_str().unwrap_or("");
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .append(true)
-            .open(dat_file_path)?;
-
-        for network in networks.iter() {
-            let network = network.parse::<IpNetwork>()?;
-            let start_ip_and_end_ip = match network {
-                IpNetwork::V4(ipv4_network) => {
-                    ipv4_network.network_address();
-                    let start_ip = ipv4_network.network_address();
-                    let end_ip = ipv4_network.broadcast_address();
-                    format!("{}-{}", start_ip, end_ip)
-                }
-                IpNetwork::V6(ipv6_network) => {
-                    ipv6_network.network_address();
-                    let start_ip = ipv6_network.network_address();
-                    let end_ip = ipv6_network.last_address();
-                    format!("{}-{}", start_ip, end_ip)
-                }
-            };
-            writeln!(file, "{}", start_ip_and_end_ip)?;
-        }
-        Ok(())
-    }
+    */
 }
