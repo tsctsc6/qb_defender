@@ -29,7 +29,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup rust
       uses: dtolnay/rust-toolchain@stable
@@ -59,7 +59,7 @@ jobs:
         OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{matrix.rid}}-bundle
         path: ./target/${{ matrix.toolchain }}/release/qb_defender${{ startsWith(matrix.rid, 'win') && '.exe' || '' }}
@@ -70,18 +70,24 @@ jobs:
       - build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
+
+    - name: get release version
+      id: get_version
+      run: Write-Host (cargo pkgid).Split('#')[1] >> $GITHUB_OUTPUT
 
     - name: Create release
       env:
         GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       run: >
-        gh release create v${{ vars.RELEASE_VERSION }}
+        gh release create v${{ steps.get_version.outputs.version }}
         --repo ${{ github.event.repository.full_name }}
-        --title v${{ vars.RELEASE_VERSION }}
+        --title v${{ steps.get_version.outputs.version }}
         --generate-notes
 
   release2:
@@ -105,7 +111,7 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ matrix.rid }}-bundle
         path: release/
@@ -113,12 +119,12 @@ jobs:
     - name: Create package
       # Change into the artifacts directory to avoid including the directory itself in the zip archive
       working-directory: release/
-      run: zip -r ../qb_defender-${{ matrix.rid }}-v${{ vars.RELEASE_VERSION }}.zip .
+      run: zip -r ../qb_defender-${{ matrix.rid }}-v${{ needs.release1.outputs.version }}.zip .
 
     - name: Upload release asset
       env:
         GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       run: >
-        gh release upload v${{ vars.RELEASE_VERSION }}
-        qb_defender-${{ matrix.rid }}-v${{ vars.RELEASE_VERSION }}.zip
+        gh release upload v${{ needs.release1.outputs.version }}
+        qb_defender-${{ matrix.rid }}-v${{ needs.release1.outputs.version }}.zip
         --repo ${{ github.event.repository.full_name }}
