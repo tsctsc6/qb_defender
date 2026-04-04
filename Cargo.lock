@@ -973,7 +973,7 @@ dependencies = [
 
 [[package]]
 name = "qb_defender"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "clap",
@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "qb_sdk"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "reqwest",
  "serde_json",
