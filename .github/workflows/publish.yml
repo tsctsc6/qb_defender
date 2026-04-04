@@ -79,7 +79,7 @@ jobs:
 
     - name: get release version
       id: get_version
-      run: Write-Host (cargo pkgid).Split('#')[1] >> $GITHUB_OUTPUT
+      run: $GITHUB_OUTPUT = (cargo pkgid).Split('#')[1]
 
     - name: Create release
       env:
