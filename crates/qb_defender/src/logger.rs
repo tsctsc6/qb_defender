@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use thiserror::Error;
 use time::OffsetDateTime;
 use time::macros::format_description;
@@ -9,15 +11,18 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
+static LOG_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Rolling file error:\n{0}")]
     RollingFileError(#[from] tracing_appender::rolling::InitError),
+    #[error("Logger initialization error:\n{0}")]
+    LoggerInitializationError(String),
 }
 
 /// Initializes the logger with both console and file outputs, using a rolling file appender.
-/// WorkerGuard must keep alive in main thread to ensure logs are flushed properly.
-pub fn init_logger(verbose: u8) -> Result<WorkerGuard, Error> {
+pub fn init_logger(verbose: u8) -> Result<(), Error> {
     let file_appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
         .filename_suffix("log")
@@ -46,7 +51,10 @@ pub fn init_logger(verbose: u8) -> Result<WorkerGuard, Error> {
         .with(file_layer)
         .init();
 
-    Ok(guard)
+    LOG_GUARD
+        .set(guard)
+        .map_err(|_| Error::LoggerInitializationError("Failed to set log guard".to_string()))?;
+    Ok(())
 }
 
 fn get_log_level(verbose: u8) -> &'static str {
