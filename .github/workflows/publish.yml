@@ -8,7 +8,39 @@ defaults:
     shell: pwsh
 
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install target toolchain
+      run: |
+        rustup target add x86_64-unknown-linux-gnu
+
+    - name: Get release version
+      id: get_version
+      run: |
+        $v = cargo x meta -f version
+        "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+    - name: Create release
+      env:
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      run: >
+        gh release create v${{ steps.get_version.outputs.version }}
+        --repo ${{ github.event.repository.full_name }}
+        --title v${{ steps.get_version.outputs.version }}
+        --generate-notes
+
   build:
+    needs:
+      - release
     strategy:
       matrix:
         include:
@@ -16,14 +48,20 @@ jobs:
             host_os: windows-latest
             toolchain: x86_64-pc-windows-msvc
           - rid: macos-x86_64
-            host_os: macos-latest
+            host_os: macos-15-intel
             toolchain: x86_64-apple-darwin
+          - rid: linux-x86_64
+            host_os: ubuntu-22.04
+            toolchain: x86_64-unknown-linux-gnu
+          - rid: win-aarch64
+            host_os: windows-11-arm
+            toolchain: aarch64-pc-windows-msvc
           - rid: macos-aarch64
             host_os: macos-latest
             toolchain: aarch64-apple-darwin
-          - rid: linux-x86_64
-            host_os: ubuntu-latest
-            toolchain: x86_64-unknown-linux-gnu
+          - rid: linux-aarch64
+            host_os: ubuntu-22.04-arm
+            toolchain: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.host_os }}
     timeout-minutes: 10
 
@@ -37,96 +75,23 @@ jobs:
     - name: Install target toolchain
       run: |
         rustup target add ${{ matrix.toolchain }}
-    
-    - name: Install openssl x64
-      if: ${{ matrix.rid == 'linux-x86_64' }}
+      
+    - name: Build
       run: |
-        sudo apt update
-        sudo apt-get install pkg-config libssl-dev
-    
-    - name: Build not linux
-      if: ${{ !startsWith(matrix.rid, 'linux-') }}
+        cargo x publish
+
+    - name: Get metadata
+      id: get_metadata
       run: |
-        cargo build --target ${{ matrix.toolchain }} --release
-
-    - name: Build linux-x86_64
-      if: ${{ matrix.rid == 'linux-x86_64' }}
-      run: |
-        cargo build --target ${{ matrix.toolchain }} --release
-      env:
-        OPENSSL_DIR: OPENSSL_DIR=/usr/lib/x86_64-linux-gnu
-        OPENSSL_INCLUDE_DIR: /usr/include/openssl
-        OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{matrix.rid}}-bundle
-        path: ./target/${{ matrix.toolchain }}/release/qb_defender${{ startsWith(matrix.rid, 'win') && '.exe' || '' }}
-        if-no-files-found: error
+        $version = cargo x meta -f version
+        "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $assetsName = cargo x meta -f assets-name
+        "assetsName=$assetsName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     
-  release1:
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: get release version
-      id: get_version
-      run: |
-        $v = (cargo pkgid).Split('#')[1]
-        "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-    - name: Create release
-      env:
-        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
-      run: >
-        gh release create v${{ steps.get_version.outputs.version }}
-        --repo ${{ github.event.repository.full_name }}
-        --title v${{ steps.get_version.outputs.version }}
-        --generate-notes
-
-  release2:
-    needs:
-      - release1
-
-    strategy:
-      matrix:
-        rid:
-          - win-x86_64
-          - macos-x86_64
-          - macos-aarch64
-          - linux-x86_64
-    
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    permissions:
-      actions: read
-      contents: write
-
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v8
-      with:
-        name: ${{ matrix.rid }}-bundle
-        path: release/
-
-    - name: Create package
-      # Change into the artifacts directory to avoid including the directory itself in the zip archive
-      working-directory: release/
-      run: zip -r ../qb_defender-${{ matrix.rid }}-v${{ needs.release1.outputs.version }}.zip .
-
     - name: Upload release asset
       env:
         GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       run: >
-        gh release upload v${{ needs.release1.outputs.version }}
-        qb_defender-${{ matrix.rid }}-v${{ needs.release1.outputs.version }}.zip
+        gh release upload v${{ steps.get_metadata.outputs.version }}
+        ./dist/${{ steps.get_metadata.outputs.assetsName }}.zip
         --repo ${{ github.event.repository.full_name }}

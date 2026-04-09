@@ -1,12 +1,15 @@
-[package]
-name = "qb_defender"
+[workspace]
+default-members = ["crates/qb_defender"]
+resolver = "2"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
 version = "0.3.0"
 edition = "2024"
 
 [workspace.dependencies]
-qb_sdk = { path = "qb_sdk" }
+qb_sdk = { path = "crates/qb_sdk" }
 
-[dependencies]
 tokio = { version = "1.50.0", features = ["full"] }
 clap = { version = "4.6.0", features = ["derive"] }
 
@@ -17,10 +20,11 @@ tracing-subscriber = { version = "0.3.23", features = [
     "time",
 ] }
 tracing-appender = "0.2.4"
-time = { version = "0.3.47", features = ["formatting", "macros"] }
 
+time = { version = "0.3.47", features = ["formatting", "macros"] }
 chrono = "0.4.44"
 thiserror = "2.0.18"
-
 ip_network = { version = "0.4.1" }
-qb_sdk = { workspace = true }
+
+reqwest = { version = "0.13.2", features = ["form"] }
+serde_json = "1.0.149"

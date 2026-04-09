@@ -1,3 +1,5 @@
+use std::process::ExitCode;
+
 use clap::Parser;
 use qb_sdk;
 use thiserror::Error;
@@ -10,28 +12,25 @@ mod command;
 mod logger;
 
 #[tokio::main]
-async fn main() -> Result<(), i32> {
+async fn main() -> ExitCode {
     let cli = command::Cli::parse();
 
-    let _guard = match logger::init_logger(cli.verbose) {
-        Ok(guard) => guard,
-        Err(e) => {
-            error!("{}", e);
-            return Err(1);
-        }
-    };
+    if let Err(e) = logger::init_logger(cli.verbose) {
+        eprintln!("{}", e);
+        return ExitCode::FAILURE;
+    }
 
     let mut application = match setup(cli.port, cli.interval).await {
         Ok(app) => app,
         Err(e) => {
             error!("{}", e);
-            return Err(1);
+            return ExitCode::FAILURE;
         }
     };
 
     run_loop(&mut application).await;
 
-    return Ok(());
+    ExitCode::SUCCESS
 }
 
 #[derive(Error, Debug)]
